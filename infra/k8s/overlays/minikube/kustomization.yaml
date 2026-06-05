@@ -1,0 +1,18 @@
+namespace: book-lens
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: book-lens-frontend
+    newName: book-lens-frontend
+    newTag: local
+  - name: book-lens-django
+    newName: book-lens-django
+    newTag: local
+
+patches:
+  - path: patches/frontend-image-pull-policy.yaml
+  - path: patches/django-image-pull-policy.yaml
+  - path: patches/nginx-service-nodeport.yaml
