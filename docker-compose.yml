@@ -1,0 +1,28 @@
+name: book-lens
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: book-lens-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: book-lens-frontend:local
+    container_name: book-lens-frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+    expose:
+      - "3000"
+    restart: unless-stopped

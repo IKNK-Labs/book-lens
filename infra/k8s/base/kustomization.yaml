@@ -1,0 +1,11 @@
+resources:
+  - frontend.yaml
+  - nginx.yaml
+
+configMapGenerator:
+  - name: nginx-config
+    files:
+      - default.conf=../../nginx/default.conf
+
+generatorOptions:
+  disableNameSuffixHash: true

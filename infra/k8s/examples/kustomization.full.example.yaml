@@ -1,0 +1,7 @@
+# Example only. Copy the relevant resources into infra/k8s/base when backend is added.
+resources:
+  - ../base
+  - app-configmap.yaml
+  - app-secret.example.yaml
+  - postgres.yaml
+  - django.yaml

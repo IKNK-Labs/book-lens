@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django
+  labels:
+    app.kubernetes.io/name: django
+    app.kubernetes.io/part-of: book-lens
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: django
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: django
+        app.kubernetes.io/part-of: book-lens
+    spec:
+      containers:
+        - name: django
+          image: book-lens-django:latest
+          ports:
+            - name: http
+              containerPort: 8000
+          # Replace config.wsgi with the actual Django project module, such as core.wsgi.
+          command:
+            - sh
+            - -c
+            - >
+              python manage.py migrate &&
+              python manage.py collectstatic --noinput &&
+              gunicorn config.wsgi:application --bind 0.0.0.0:8000
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secret
+          volumeMounts:
+            - name: staticfiles
+              mountPath: /app/staticfiles
+            - name: media
+              mountPath: /app/media
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: staticfiles
+          emptyDir: {}
+        - name: media
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: django
+  labels:
+    app.kubernetes.io/name: django
+    app.kubernetes.io/part-of: book-lens
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: django
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
