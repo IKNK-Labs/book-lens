@@ -1,0 +1,2 @@
+// lib/api.ts
+export {};
