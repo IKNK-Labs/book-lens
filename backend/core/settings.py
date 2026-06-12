@@ -351,4 +351,4 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
->>>>>>> 72be842aeab37610266d13e0cbf433f5c0d09746
+
