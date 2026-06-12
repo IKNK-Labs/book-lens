@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """Django settings for the book-lens backend."""
 
 from __future__ import annotations
