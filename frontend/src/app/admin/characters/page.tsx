@@ -1,4 +1,27 @@
+"use client";
+
+import { useState } from "react";
 import CharacterCard from "@/components/admin/CharacterCard";
+
+// character 테이블 컬럼(name, role, gender, emoji, description, profile_image_url)에 맞춘 폼
+type CharacterForm = {
+  name: string;
+  role: string;
+  gender: string;
+  emoji: string;
+  description: string;
+  profileImageUrl: string;
+};
+
+const CURRENT_CHARACTER: CharacterForm = {
+  name: "마녀",
+  role: "악역",
+  gender: "여성",
+  emoji: "🧙",
+  description:
+    "백설공주와 일곱 난쟁이 속 마녀. 거울의 말에 상처받고 질투심을 느끼지만, 답변에서는 폭력적 행동을 미화하지 않도록 설정합니다.",
+  profileImageUrl: "",
+};
 
 const CHARACTERS = [
   {
@@ -24,6 +47,27 @@ const CHARACTERS = [
 ];
 
 export default function Page() {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [characterForm, setCharacterForm] = useState<CharacterForm>(
+    CURRENT_CHARACTER
+  );
+
+  const openEditModal = () => {
+    setCharacterForm(CURRENT_CHARACTER);
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => setIsEditModalOpen(false);
+
+  const updateCharacterField = (field: keyof CharacterForm, value: string) => {
+    setCharacterForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = () => {
+    console.log("수정된 캐릭터 데이터:", characterForm);
+    setIsEditModalOpen(false);
+  };
+
   return (
     <div>
       <div className="flex justify-between items-start gap-4 mb-4">
@@ -165,6 +209,7 @@ export default function Page() {
             <div className="flex gap-2 flex-wrap mt-2.5">
               <button
                 type="button"
+                onClick={openEditModal}
                 className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
               >
                 수정
@@ -185,6 +230,120 @@ export default function Page() {
           </div>
         </div>
       </section>
+
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white border border-[#eadcf0] rounded-3xl shadow-[0_24px_60px_rgba(130,90,160,0.22)] p-4">
+            <h3 className="text-lg tracking-tight text-[#7d5ba6] m-0 mb-1">
+              {CURRENT_CHARACTER.name} 수정
+            </h3>
+            <p className="mt-1 mb-3 text-[12px] text-[#94859d]">
+              캐릭터 정보를 수정하고 저장하세요.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+                  이름
+                </label>
+                <input
+                  type="text"
+                  value={characterForm.name}
+                  onChange={(e) => updateCharacterField("name", e.target.value)}
+                  placeholder="캐릭터 이름을 입력하세요"
+                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                />
+              </div>
+
+              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+                  역할
+                </label>
+                <input
+                  type="text"
+                  value={characterForm.role}
+                  onChange={(e) => updateCharacterField("role", e.target.value)}
+                  placeholder="예: 주인공, 조력자"
+                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                />
+              </div>
+
+              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+                  성별
+                </label>
+                <input
+                  type="text"
+                  value={characterForm.gender}
+                  onChange={(e) => updateCharacterField("gender", e.target.value)}
+                  placeholder="예: 여성, 남성"
+                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                />
+              </div>
+
+              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+                  이모지
+                </label>
+                <input
+                  type="text"
+                  value={characterForm.emoji}
+                  onChange={(e) => updateCharacterField("emoji", e.target.value)}
+                  placeholder="예: 🧙"
+                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                />
+              </div>
+
+              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
+                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+                  프로필 이미지 URL
+                </label>
+                <input
+                  type="text"
+                  value={characterForm.profileImageUrl}
+                  onChange={(e) =>
+                    updateCharacterField("profileImageUrl", e.target.value)
+                  }
+                  placeholder="프로필 이미지 URL을 입력하세요"
+                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                />
+              </div>
+
+              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
+                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+                  소개
+                </label>
+                <textarea
+                  value={characterForm.description}
+                  onChange={(e) =>
+                    updateCharacterField("description", e.target.value)
+                  }
+                  placeholder="캐릭터 소개를 입력하세요"
+                  rows={4}
+                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0] whitespace-nowrap"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
