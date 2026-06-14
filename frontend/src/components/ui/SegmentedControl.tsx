@@ -10,7 +10,7 @@ export function SegmentedControl({
   return (
     <div className="grid gap-2 sm:grid-cols-[140px_1fr] sm:items-center">
       <span className="text-sm font-black text-[var(--accent-strong)]">{label}</span>
-      <div className="flex flex-wrap gap-2" aria-label={label}>
+      <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
         {options.map((option) => {
           const isActive = option === active;
 
