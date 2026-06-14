@@ -16,7 +16,7 @@ export function UserPreferenceForm() {
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">정확한 생년월일이 아니라, AI 응답을 맞출 대상 연령대를 선택합니다.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {ageGroups.map((age) => (
-            <Chip key={age} active={age === mockPreference.ageGroup}>
+            <Chip key={age} interactive active={age === mockPreference.ageGroup}>
               {age}
             </Chip>
           ))}
@@ -34,7 +34,7 @@ export function UserPreferenceForm() {
           <p className="mb-2 text-sm font-black text-[var(--accent-strong)]">설명 방식</p>
           <div className="flex flex-wrap gap-2">
             {explanationStyles.map((style) => (
-              <Chip key={style} active={style === mockPreference.explanationStyle}>
+              <Chip key={style} interactive active={style === mockPreference.explanationStyle}>
                 {style}
               </Chip>
             ))}
@@ -47,7 +47,7 @@ export function UserPreferenceForm() {
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">동화 추천이나 생성에 참고하는 값입니다. 캐릭터 페르소나보다 우선하지 않습니다.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {interests.map((interest) => (
-            <Chip key={interest} active={mockPreference.interests.includes(interest)}>
+            <Chip key={interest} interactive active={mockPreference.interests.includes(interest)}>
               {interest}
             </Chip>
           ))}

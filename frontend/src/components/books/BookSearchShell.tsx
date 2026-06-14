@@ -27,7 +27,7 @@ export function BookSearchShell() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {mockGenreFilters.map((filter, index) => (
-            <Chip key={filter} active={index === 0}>
+            <Chip key={filter} interactive active={index === 0}>
               {filter}
             </Chip>
           ))}
