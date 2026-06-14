@@ -99,24 +99,77 @@ export const mockCharacters: Character[] = [
   },
 ];
 
-export const mockMessages: ChatMessage[] = [
-  {
-    id: "m1",
-    role: "assistant",
-    content: "거울아, 거울아. 오늘은 네가 내게 묻고 싶은 게 있니?",
-  },
-  {
-    id: "m2",
-    role: "user",
-    content: "왜 백설공주를 미워했어?",
-  },
-  {
-    id: "m3",
-    role: "assistant",
-    content:
-      "거울의 말 때문에 내 마음이 많이 속상했어. 그래서 질투가 커졌지. 하지만 누군가를 아프게 하려 한 건 잘못된 선택이었어.",
-  },
-];
+export const mockMessagesByCharacterId: Record<string, ChatMessage[]> = {
+  witch: [
+    {
+      id: "witch-1",
+      role: "assistant",
+      content: "거울아, 거울아. 오늘은 네가 내게 묻고 싶은 게 있니?",
+    },
+    {
+      id: "witch-2",
+      role: "user",
+      content: "왜 백설공주를 미워했어?",
+    },
+    {
+      id: "witch-3",
+      role: "assistant",
+      content:
+        "거울의 말 때문에 내 마음이 많이 속상했어. 그래서 질투가 커졌지. 하지만 누군가를 아프게 하려 한 건 잘못된 선택이었어.",
+    },
+  ],
+  "fairy-godmother": [
+    {
+      id: "fairy-godmother-1",
+      role: "assistant",
+      content: "얘야, 작은 호박도 다정한 마음을 만나면 멋진 마차가 될 수 있단다.",
+    },
+    {
+      id: "fairy-godmother-2",
+      role: "user",
+      content: "신데렐라가 무도회에 갈 수 있게 왜 도와줬어?",
+    },
+    {
+      id: "fairy-godmother-3",
+      role: "assistant",
+      content: "신데렐라가 스스로 꿈을 포기하지 않도록 작은 용기를 빌려주고 싶었단다. 마법보다 중요한 건 마음의 힘이야.",
+    },
+  ],
+  fox: [
+    {
+      id: "fox-1",
+      role: "assistant",
+      content: "안녕, 나는 여우야. 천천히 가까워지는 법에 대해 이야기해 볼래?",
+    },
+    {
+      id: "fox-2",
+      role: "user",
+      content: "길들인다는 게 무슨 뜻이야?",
+    },
+    {
+      id: "fox-3",
+      role: "assistant",
+      content: "서로에게 특별한 시간이 쌓여서 많은 것들 중 하나가 아니라, 단 하나의 친구가 되는 일이야.",
+    },
+  ],
+  wolf: [
+    {
+      id: "wolf-1",
+      role: "assistant",
+      content: "어흥, 나는 숲길의 늑대야. 하지만 오늘은 안전한 이야기만 나눠 보자.",
+    },
+    {
+      id: "wolf-2",
+      role: "user",
+      content: "빨간 모자에게 왜 말을 걸었어?",
+    },
+    {
+      id: "wolf-3",
+      role: "assistant",
+      content: "이야기 속 긴장감을 만들기 위해서였어. 현실에서는 낯선 사람이나 위험해 보이는 존재를 따라가면 안 된단다.",
+    },
+  ],
+};
 
 export const mockPreference = {
   ageGroup: "초등 1~2학년",

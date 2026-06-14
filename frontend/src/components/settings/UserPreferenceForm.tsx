@@ -65,7 +65,7 @@ export function UserPreferenceForm() {
           className="mt-4 w-full rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] p-4 text-sm leading-6 outline-none placeholder:text-[var(--muted)]"
           defaultValue={mockPreference.instruction}
         />
-        <p className="mt-2 text-xs text-[var(--muted)]">0 / 500자</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">최대 500자까지 입력할 수 있습니다.</p>
       </Card>
 
       <PreferencePreview />

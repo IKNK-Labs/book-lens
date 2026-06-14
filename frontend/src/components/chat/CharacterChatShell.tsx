@@ -1,10 +1,11 @@
-import { mockCharacters, mockMessages } from "../../data/mock";
+import { mockCharacters, mockMessagesByCharacterId } from "../../data/mock";
 import { Card } from "../ui/Card";
 import { ChatBubble } from "./ChatBubble";
 import { ChatInputBar } from "./ChatInputBar";
 
 export function CharacterChatShell({ characterId }: { characterId: string }) {
   const character = mockCharacters.find((item) => item.id === characterId) ?? mockCharacters[0];
+  const messages = mockMessagesByCharacterId[character.id] ?? mockMessagesByCharacterId.witch;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
@@ -29,7 +30,7 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
           <p className="mt-1 text-xs text-[var(--muted)]">현재는 mock 메시지 기반 UI shell입니다.</p>
         </div>
         <div className="grid min-h-[440px] content-start gap-4 p-5">
-          {mockMessages.map((message) => (
+          {messages.map((message) => (
             <ChatBubble key={message.id} message={message} />
           ))}
         </div>

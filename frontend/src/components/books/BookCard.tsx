@@ -21,7 +21,7 @@ export function BookCard({ book }: { book: Book }) {
           href={`/chat/${book.featuredCharacterId}`}
           className="rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-black text-white"
         >
-          캐릭터 보기
+          대표 캐릭터와 대화
         </Link>
       </div>
     </article>
