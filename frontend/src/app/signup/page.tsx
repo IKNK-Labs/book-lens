@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { login, signInWithGoogle } from "./actions";
+import { signUp } from "../login/actions";
 
 type PageProps = {
   searchParams: Promise<{
@@ -25,11 +25,10 @@ export default async function Page({ searchParams }: PageProps) {
             📚
           </div>
           <h1 className="m-0 text-2xl tracking-tight text-[#7d5ba6]">
-            로그인
+            회원가입
           </h1>
           <p className="mt-2 text-[12px] leading-relaxed text-[#94859d]">
-            이메일 또는 구글 계정으로 로그인하고 동화 속 캐릭터를
-            만나보세요.
+            이메일과 닉네임으로 book-lens 계정을 만들어보세요.
           </p>
         </div>
 
@@ -73,34 +72,31 @@ export default async function Page({ searchParams }: PageProps) {
             />
           </div>
 
+          <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+            <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+              닉네임
+            </label>
+            <input
+              name="nickname"
+              type="text"
+              maxLength={50}
+              placeholder="표시할 닉네임"
+              className="w-full min-h-[38px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-3 py-2 outline-none focus:border-[#c7a8ff]"
+            />
+          </div>
+
           <button
-            formAction={login}
+            formAction={signUp}
             className="rounded-full px-4 py-3 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] shadow-[0_10px_22px_rgba(198,148,220,0.22)]"
           >
-            이메일로 로그인
+            회원가입
           </button>
         </form>
-
-        <form action={signInWithGoogle} className="mt-3">
-          <button
-            type="submit"
-            className="w-full rounded-full px-4 py-3 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
-          >
-            Google로 계속하기
-          </button>
-        </form>
-
-        <Link
-          href="/signup"
-          className="mt-3 block rounded-full px-4 py-3 text-center text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
-        >
-          회원가입
-        </Link>
 
         <div className="mt-4 flex items-center justify-between gap-3 text-[11px] text-[#94859d]">
-          <span>관리자 계정으로 들어가나요?</span>
-          <Link href="/admin/login" className="text-[#8b69a3] font-bold">
-            관리자 로그인
+          <span>이미 계정이 있나요?</span>
+          <Link href="/login" className="text-[#8b69a3] font-bold">
+            로그인
           </Link>
         </div>
       </section>
