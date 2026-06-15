@@ -9,7 +9,7 @@ type PageProps = { params: Promise<{ bookId: string }>; searchParams: Promise<{ 
 
 export default async function StoryPage({ params, searchParams }: PageProps) {
   const [{ bookId }, authParams] = await Promise.all([params, searchParams]);
-  const viewer = getViewer(authParams);
+  const viewer = await getViewer(authParams);
   if (!viewer.isMember) {
     redirect(`/login?message=${encodeURIComponent("동화 구연을 시작하려면 로그인이 필요합니다.")}`);
   }
@@ -43,7 +43,7 @@ export default async function StoryPage({ params, searchParams }: PageProps) {
           <Card>
             <h2 className="text-lg font-black text-[var(--accent-strong)]">장면 속 캐릭터</h2>
             <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{currentScene?.characterName ?? "캐릭터"}와 방금 장면에 대해 이야기해 보세요.</p>
-            <Link href={`/chat/${currentScene?.characterId ?? book.featuredCharacterId}?auth=member`} className="mt-5 block rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white">이 장면의 캐릭터와 대화</Link>
+            <Link href={`/chat/${currentScene?.characterId ?? book.featuredCharacterId}${viewer.isPreview ? "?auth=member" : ""}`} className="mt-5 block rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white">이 장면의 캐릭터와 대화</Link>
           </Card>
         </aside>
       </div>

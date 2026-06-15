@@ -9,7 +9,7 @@ import { getViewer } from "../lib/mockAuth";
 type PageProps = { searchParams: Promise<{ auth?: string }> };
 
 export default async function Page({ searchParams }: PageProps) {
-  const viewer = getViewer(await searchParams);
+  const viewer = await getViewer(await searchParams);
   const featuredBooks = mockBooks.slice(0, 3);
 
   return (
@@ -23,7 +23,7 @@ export default async function Page({ searchParams }: PageProps) {
           />
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <input className="min-h-12 rounded-full border border-[var(--line)] bg-[var(--surface-soft)] px-5 text-sm outline-none placeholder:text-[var(--muted)]" placeholder="찾고 싶은 동화 제목을 입력하세요" aria-label="동화 검색" />
-            <Link href={viewer.isMember ? "/books?auth=member" : "/books"} className="grid min-h-12 place-items-center rounded-full bg-[var(--accent)] px-6 text-sm font-black text-white">
+            <Link href={viewer.isPreview ? "/books?auth=member" : "/books"} className="grid min-h-12 place-items-center rounded-full bg-[var(--accent)] px-6 text-sm font-black text-white">
               동화 검색
             </Link>
           </div>
@@ -34,7 +34,7 @@ export default async function Page({ searchParams }: PageProps) {
           <SectionHeader title={viewer.isMember ? "맞춤 추천 동화" : "지금 볼 수 있는 동화"} description={viewer.isMember ? "제석님의 관심 주제와 최근 대화를 바탕으로 골랐어요." : "먼저 이야기를 살펴보고, 마음에 드는 동화를 선택해 보세요."} />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {featuredBooks.map((book) => (
-              <BookCard key={book.id} book={book} isMember={viewer.isMember} />
+              <BookCard key={book.id} book={book} isMember={viewer.isMember} isPreview={viewer.isPreview} />
             ))}
           </div>
         </section>
@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: PageProps) {
                   <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--foreground)]">{session.title}</h2>
                   <p className="mt-1 text-xs font-bold text-[var(--accent-strong)]">{session.bookTitle} · {session.characterName}</p>
                   <p className="mt-3 flex-1 text-sm leading-6 text-[var(--muted)]">{session.lastMessage}</p>
-                  <Link href={`/chat/${session.characterId}?auth=member`} className="mt-4 w-fit rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-black text-white">내 대화 이어가기</Link>
+                  <Link href={viewer.isPreview ? `/chat/${session.characterId}?auth=member` : `/chat/${session.characterId}`} className="mt-4 w-fit rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-black text-white">내 대화 이어가기</Link>
                 </Card>
               ))}
             </div>

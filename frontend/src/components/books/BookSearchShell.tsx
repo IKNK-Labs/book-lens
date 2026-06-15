@@ -4,7 +4,7 @@ import { Chip } from "../ui/Chip";
 import { SectionHeader } from "../ui/SectionHeader";
 import { BookCard } from "./BookCard";
 
-export function BookSearchShell({ isMember = false }: { isMember?: boolean }) {
+export function BookSearchShell({ isMember = false, isPreview = false }: { isMember?: boolean; isPreview?: boolean }) {
   return (
     <div className="grid gap-6">
       <SectionHeader
@@ -30,7 +30,7 @@ export function BookSearchShell({ isMember = false }: { isMember?: boolean }) {
       {isMember ? <p className="rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-5 py-4 text-sm font-bold text-[var(--accent-strong)]">최근 대화와 관심 주제를 참고해 추천 순서를 보여드려요.</p> : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {mockBooks.map((book) => (
-          <BookCard key={book.id} book={book} isMember={isMember} />
+          <BookCard key={book.id} book={book} isMember={isMember} isPreview={isPreview} />
         ))}
       </div>
     </div>

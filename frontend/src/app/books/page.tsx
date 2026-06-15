@@ -5,11 +5,11 @@ import { getViewer } from "../../lib/mockAuth";
 type BooksPageProps = { searchParams: Promise<{ auth?: string }> };
 
 export default async function BooksPage({ searchParams }: BooksPageProps) {
-  const viewer = getViewer(await searchParams);
+  const viewer = await getViewer(await searchParams);
 
   return (
     <AppShell viewer={viewer}>
-      <BookSearchShell isMember={viewer.isMember} />
+      <BookSearchShell isMember={viewer.isMember} isPreview={viewer.isPreview} />
     </AppShell>
   );
 }

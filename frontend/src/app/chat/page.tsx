@@ -7,7 +7,7 @@ import { getViewer } from "../../lib/mockAuth";
 
 type ChatPageProps = { searchParams: Promise<{ auth?: string }> };
 
-function ConversationCard({ session }: { session: (typeof mockConversationSessions)[number] }) {
+function ConversationCard({ session, isPreview }: { session: (typeof mockConversationSessions)[number]; isPreview: boolean }) {
   return (
     <article className="grid gap-3 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-4">
       <div>
@@ -17,14 +17,14 @@ function ConversationCard({ session }: { session: (typeof mockConversationSessio
       <p className="line-clamp-2 text-sm leading-6 text-[var(--muted)]">{session.lastMessage}</p>
       <div className="flex items-end justify-between gap-3">
         <p className="text-xs font-bold text-[var(--muted)]">{session.updatedAt} / {session.saved ? "저장됨" : "임시 대화"}</p>
-        <Link href={`/chat/${session.characterId}?auth=member`} className="shrink-0 rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-black text-white">이어하기</Link>
+        <Link href={`/chat/${session.characterId}${isPreview ? "?auth=member" : ""}`} className="shrink-0 rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-black text-white">이어하기</Link>
       </div>
     </article>
   );
 }
 
 export default async function ChatPage({ searchParams }: ChatPageProps) {
-  const viewer = getViewer(await searchParams);
+  const viewer = await getViewer(await searchParams);
 
   if (!viewer.isMember) {
     redirect(`/login?message=${encodeURIComponent("대화를 이어가려면 로그인이 필요합니다.")}`);
@@ -44,7 +44,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
               <button type="button" className="rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-black text-white">검색</button>
             </div>
           </Card>
-          {mockConversationSessions.map((session) => <ConversationCard key={session.id} session={session} />)}
+          {mockConversationSessions.map((session) => <ConversationCard key={session.id} session={session} isPreview={viewer.isPreview} />)}
         </aside>
 
         <details className="rounded-[28px] border border-[var(--line)] bg-[var(--surface-soft)] p-3 lg:hidden">
@@ -60,7 +60,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
               <input className="min-w-0 flex-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm outline-none" placeholder="대화 검색" aria-label="모바일 대화 검색" />
               <button type="button" className="rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-black text-white">검색</button>
             </div>
-            {mockConversationSessions.map((session) => <ConversationCard key={session.id} session={session} />)}
+            {mockConversationSessions.map((session) => <ConversationCard key={session.id} session={session} isPreview={viewer.isPreview} />)}
           </div>
         </details>
 

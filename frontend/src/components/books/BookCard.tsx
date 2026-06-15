@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Book } from "../../data/mock";
 import { Chip } from "../ui/Chip";
 
-export function BookCard({ book, isMember = false }: { book: Book; isMember?: boolean }) {
-  const detailHref = `/books/${book.id}${isMember ? "?auth=member" : ""}`;
+export function BookCard({ book, isMember = false, isPreview = false }: { book: Book; isMember?: boolean; isPreview?: boolean }) {
+  const detailHref = `/books/${book.id}${isPreview ? "?auth=member" : ""}`;
 
   return (
     <article className="flex h-full flex-col rounded-[26px] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[var(--shadow)]">

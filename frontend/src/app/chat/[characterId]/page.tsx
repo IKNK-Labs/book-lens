@@ -10,7 +10,7 @@ type ChatPageProps = {
 
 export default async function ChatPage({ params, searchParams }: ChatPageProps) {
   const [{ characterId }, authParams] = await Promise.all([params, searchParams]);
-  const viewer = getViewer(authParams);
+  const viewer = await getViewer(authParams);
 
   if (!viewer.isMember) {
     redirect(`/login?message=${encodeURIComponent("캐릭터와 대화하려면 로그인이 필요합니다.")}`);

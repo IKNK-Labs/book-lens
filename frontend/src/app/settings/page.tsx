@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppShell } from "../../components/layout/AppShell";
 import { UserPreferenceForm } from "../../components/settings/UserPreferenceForm";
@@ -7,11 +6,12 @@ import { Card } from "../../components/ui/Card";
 import { SectionHeader } from "../../components/ui/SectionHeader";
 import { mockViewerAccount } from "../../data/mock";
 import { getViewer } from "../../lib/mockAuth";
+import { signOut } from "../logout/actions";
 
 type SettingsPageProps = { searchParams: Promise<{ auth?: string }> };
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
-  const viewer = getViewer(await searchParams);
+  const viewer = await getViewer(await searchParams);
 
   if (!viewer.isMember) {
     redirect(`/login?message=${encodeURIComponent("마이페이지를 보려면 로그인이 필요합니다.")}`);
@@ -31,7 +31,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 <div className="rounded-2xl bg-[var(--surface-soft)] p-3"><dt className="font-black text-[var(--muted)]">로그인 방식</dt><dd className="mt-1 font-bold text-[var(--foreground)]">{mockViewerAccount.provider}</dd></div>
               </dl>
             </div>
-            <Link href="/" className="w-fit rounded-full border border-[var(--line)] px-5 py-3 text-sm font-black text-[var(--muted)]">로그아웃</Link>
+            <form action={signOut}>
+              <button type="submit" className="w-fit rounded-full border border-[var(--line)] px-5 py-3 text-sm font-black text-[var(--muted)]">로그아웃</button>
+            </form>
           </div>
         </Card>
         <section className="grid gap-5 lg:grid-cols-[1fr_320px]">

@@ -13,13 +13,13 @@ type PageProps = {
 
 export default async function BookDetailPage({ params, searchParams }: PageProps) {
   const [{ id }, authParams] = await Promise.all([params, searchParams]);
-  const viewer = getViewer(authParams);
+  const viewer = await getViewer(authParams);
   const book = mockBooks.find((item) => item.id === id);
 
   if (!book) notFound();
 
   const characters = mockCharacters.filter((character) => character.bookTitle === book.title);
-  const storyHref = `/story/${book.id}?auth=member`;
+  const storyHref = `/story/${book.id}${viewer.isPreview ? "?auth=member" : ""}`;
 
   return (
     <AppShell viewer={viewer}>
@@ -56,7 +56,7 @@ export default async function BookDetailPage({ params, searchParams }: PageProps
               {viewer.isMember ? (
                 <>
                   <Link href={storyHref} className="rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white">동화 구연 시작</Link>
-                  <Link href={`/chat/${book.featuredCharacterId}?auth=member`} className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">캐릭터와 대화</Link>
+                  <Link href={`/chat/${book.featuredCharacterId}${viewer.isPreview ? "?auth=member" : ""}`} className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">캐릭터와 대화</Link>
                 </>
               ) : (
                 <>
