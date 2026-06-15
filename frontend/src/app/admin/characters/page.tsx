@@ -1,22 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Swal from "sweetalert2";
 import CharacterCard from "@/components/admin/CharacterCard";
+import { mockPersonas, type Persona } from "@/data/mock";
 import {
-  mockBooks,
-  mockCharacters,
-  mockPersonas,
-  type Persona,
-} from "@/data/mock";
-
-type CharacterForm = {
-  name: string;
-  role: string;
-  gender: string;
-  emoji: string;
-  description: string;
-  profileImageUrl: string;
-};
+  adminBooksApi,
+  adminCharactersApi,
+  type BookResponse,
+  type CharacterPayload,
+  type CharacterResponse,
+} from "@/lib/api";
 
 type PersonaForm = {
   personality: string;
@@ -35,13 +29,14 @@ type PersonaForm = {
   approvalStatus: "draft" | "approved" | "rejected";
 };
 
-const EMPTY_CHARACTER_FORM: CharacterForm = {
+const EMPTY_CHARACTER: CharacterPayload = {
+  book_id: 0,
   name: "",
   role: "",
   gender: "",
   emoji: "",
   description: "",
-  profileImageUrl: "",
+  profile_image_url: "",
 };
 
 const EMPTY_PERSONA_FORM: PersonaForm = {
@@ -61,7 +56,7 @@ const EMPTY_PERSONA_FORM: PersonaForm = {
   approvalStatus: "draft",
 };
 
-const MOCK_CHARACTER_AUTOCOMPLETE: Record<string, CharacterForm> = {
+const MOCK_CHARACTER_AUTOCOMPLETE: Record<string, Omit<CharacterPayload, "book_id">> = {
   마녀: {
     name: "마녀",
     role: "악역",
@@ -69,7 +64,6 @@ const MOCK_CHARACTER_AUTOCOMPLETE: Record<string, CharacterForm> = {
     emoji: "🧙",
     description:
       "백설공주와 일곱 난쟁이 속 마녀. 거울의 말에 상처받고 질투심을 느끼지만, 해로운 행동을 미화하지 않도록 설정합니다.",
-    profileImageUrl: "",
   },
   신데렐라: {
     name: "신데렐라",
@@ -78,12 +72,11 @@ const MOCK_CHARACTER_AUTOCOMPLETE: Record<string, CharacterForm> = {
     emoji: "👸",
     description:
       "계모와 언니들의 구박을 받으면서도 희망을 잃지 않는 착한 마음씨의 주인공입니다.",
-    profileImageUrl: "",
   },
 };
 
-function getPersonaFormFromMock(characterId: string): PersonaForm {
-  const p = mockPersonas.find((m) => m.characterId === characterId);
+function getPersonaFormFromMock(characterId: number): PersonaForm {
+  const p = mockPersonas.find((m) => m.characterId === String(characterId));
   if (!p) return EMPTY_PERSONA_FORM;
   return {
     personality: p.personality,
@@ -116,43 +109,48 @@ const APPROVAL_STYLE: Record<Persona["approvalStatus"], string> = {
 };
 
 export default function Page() {
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    null
-  );
+  const [books, setBooks] = useState<BookResponse[]>([]);
+  const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+  const [characters, setCharacters] = useState<CharacterResponse[]>([]);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // character modal
   const [isCharacterModalOpen, setIsCharacterModalOpen] = useState(false);
-  const [characterModalMode, setCharacterModalMode] = useState<"add" | "edit">(
-    "add"
-  );
+  const [characterModalMode, setCharacterModalMode] = useState<"add" | "edit">("add");
   const [characterNameInput, setCharacterNameInput] = useState("");
-  const [characterForm, setCharacterForm] =
-    useState<CharacterForm>(EMPTY_CHARACTER_FORM);
+  const [characterForm, setCharacterForm] = useState<Omit<CharacterPayload, "book_id">>(
+    EMPTY_CHARACTER
+  );
 
   // persona modal
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
-  const [personaModalMode, setPersonaModalMode] = useState<"add" | "edit">(
-    "add"
-  );
+  const [personaModalMode, setPersonaModalMode] = useState<"add" | "edit">("add");
   const [personaLlmInput, setPersonaLlmInput] = useState("");
   const [personaForm, setPersonaForm] = useState<PersonaForm>(EMPTY_PERSONA_FORM);
 
-  const selectedBook = mockBooks.find((b) => b.id === selectedBookId);
-  const filteredCharacters = selectedBook
-    ? mockCharacters.filter((c) => c.bookTitle === selectedBook.title)
-    : [];
-  const selectedCharacter = mockCharacters.find(
-    (c) => c.id === selectedCharacterId
-  );
+  useEffect(() => {
+    adminBooksApi.list().then(setBooks).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (selectedBookId == null) {
+      setCharacters([]);
+      return;
+    }
+    adminCharactersApi.list(selectedBookId).then(setCharacters).catch(console.error);
+  }, [selectedBookId]);
+
+  const selectedBook = books.find((b) => b.id === selectedBookId);
+  const selectedCharacter = characters.find((c) => c.id === selectedCharacterId);
   const selectedPersona = mockPersonas.find(
-    (p) => p.characterId === selectedCharacterId
+    (p) => p.characterId === String(selectedCharacterId)
   );
 
   const openAddCharacterModal = () => {
     setCharacterModalMode("add");
     setCharacterNameInput("");
-    setCharacterForm(EMPTY_CHARACTER_FORM);
+    setCharacterForm({ ...EMPTY_CHARACTER });
     setIsCharacterModalOpen(true);
   };
 
@@ -162,11 +160,11 @@ export default function Page() {
     setCharacterNameInput(selectedCharacter.name);
     setCharacterForm({
       name: selectedCharacter.name,
-      role: selectedCharacter.role,
-      gender: selectedCharacter.gender,
-      emoji: selectedCharacter.avatarEmoji,
-      description: selectedCharacter.shortBio,
-      profileImageUrl: selectedCharacter.profileImageUrl ?? "",
+      role: selectedCharacter.role ?? "",
+      gender: selectedCharacter.gender ?? "",
+      emoji: selectedCharacter.emoji ?? "",
+      description: selectedCharacter.description ?? "",
+      profile_image_url: selectedCharacter.profile_image_url ?? "",
     });
     setIsCharacterModalOpen(true);
   };
@@ -176,8 +174,63 @@ export default function Page() {
     if (mock) setCharacterForm(mock);
   };
 
-  const updateCharacterField = (field: keyof CharacterForm, value: string) => {
-    setCharacterForm((prev) => ({ ...prev, [field]: value }));
+  const CHARACTER_REQUIRED: { key: keyof typeof characterForm; label: string }[] = [
+    { key: "name", label: "이름" },
+    { key: "role", label: "역할" },
+    { key: "gender", label: "성별" },
+    { key: "emoji", label: "이모지" },
+    { key: "description", label: "소개" },
+    { key: "profile_image_url", label: "프로필 이미지 URL" },
+  ];
+
+  const handleCharacterSave = async () => {
+    if (!selectedBookId) return;
+
+    const missing = CHARACTER_REQUIRED.filter((f) => !String(characterForm[f.key] ?? "").trim());
+    if (missing.length > 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "필수 항목 미입력",
+        html: missing.map((f) => `<b>${f.label}</b>`).join(", ") + "을(를) 입력해주세요.",
+        confirmButtonText: "확인",
+        confirmButtonColor: "#c7a8ff",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (characterModalMode === "add") {
+        const created = await adminCharactersApi.create({
+          ...characterForm,
+          book_id: selectedBookId,
+        });
+        setCharacters((prev) => [...prev, created]);
+      } else if (selectedCharacterId != null) {
+        const updated = await adminCharactersApi.update(selectedCharacterId, characterForm);
+        setCharacters((prev) =>
+          prev.map((c) => (c.id === selectedCharacterId ? updated : c))
+        );
+      }
+      setIsCharacterModalOpen(false);
+      await Swal.fire({
+        icon: "success",
+        title: "저장되었습니다",
+        confirmButtonText: "확인",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } catch (e) {
+      console.error(e);
+      Swal.fire({
+        icon: "error",
+        title: "저장 실패",
+        text: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
+        confirmButtonText: "확인",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const openAddPersonaModal = () => {
@@ -200,10 +253,7 @@ export default function Page() {
     setPersonaForm(getPersonaFormFromMock(selectedCharacterId));
   };
 
-  const updatePersonaField = (
-    field: keyof PersonaForm,
-    value: string
-  ) => {
+  const updatePersonaField = (field: keyof PersonaForm, value: string) => {
     setPersonaForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -219,9 +269,7 @@ export default function Page() {
       {/* Header */}
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
-          <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">
-            캐릭터 관리
-          </h3>
+          <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">캐릭터 관리</h3>
           <p className="mt-1.5 text-[13px] text-[#94859d]">
             동화책을 선택한 후 캐릭터를 조회하고 페르소나를 관리합니다.
           </p>
@@ -243,15 +291,15 @@ export default function Page() {
         <select
           value={selectedBookId ?? ""}
           onChange={(e) => {
-            setSelectedBookId(e.target.value || null);
+            setSelectedBookId(e.target.value ? Number(e.target.value) : null);
             setSelectedCharacterId(null);
           }}
           className="bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-3 py-2 outline-none focus:border-[#c7a8ff] w-full sm:w-80"
         >
           <option value="">동화책을 선택하세요</option>
-          {mockBooks.map((book) => (
+          {books.map((book) => (
             <option key={book.id} value={book.id}>
-              {book.coverEmoji} {book.title}
+              {book.title}
             </option>
           ))}
         </select>
@@ -261,20 +309,20 @@ export default function Page() {
       {selectedBookId && (
         <section className="bg-white border border-[#eadcf0] rounded-3xl p-4 shadow-[0_10px_26px_rgba(180,140,205,0.13)] mb-3.5">
           <h4 className="m-0 mb-3 text-[15px] text-[#72508c]">
-            {selectedBook?.coverEmoji} {selectedBook?.title} · 캐릭터 목록
+            {selectedBook?.title} · 캐릭터 목록
           </h4>
-          {filteredCharacters.length === 0 ? (
+          {characters.length === 0 ? (
             <p className="text-[12px] text-[#94859d] text-center py-6">
               이 동화책에 등록된 캐릭터가 없습니다.
             </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-              {filteredCharacters.map((character) => (
+              {characters.map((character) => (
                 <CharacterCard
                   key={character.id}
-                  emoji={character.avatarEmoji}
+                  emoji={character.emoji ?? "📖"}
                   name={character.name}
-                  description={`${character.role} · ${character.gender}`}
+                  description={[character.role, character.gender].filter(Boolean).join(" · ")}
                   onClick={() =>
                     setSelectedCharacterId(
                       selectedCharacterId === character.id ? null : character.id
@@ -296,22 +344,26 @@ export default function Page() {
             <div className="flex items-start justify-between gap-3 border-b border-[#eadcf0] pb-3.5 mb-3.5">
               <div className="flex gap-3 items-center">
                 <div className="h-[80px] w-[80px] rounded-3xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-4xl shrink-0">
-                  {selectedCharacter.avatarEmoji}
+                  {selectedCharacter.emoji ?? "📖"}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1.5">
                     <h4 className="m-0 text-[18px] tracking-tight text-[#72508c]">
                       {selectedCharacter.name}
                     </h4>
-                    <span className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2 py-0.5 text-[10px] font-bold">
-                      {selectedCharacter.role}
-                    </span>
-                    <span className="bg-[#f0f0ff] text-[#6060c0] border border-[#dcdcf0] rounded-full px-2 py-0.5 text-[10px] font-bold">
-                      {selectedCharacter.gender}
-                    </span>
+                    {selectedCharacter.role && (
+                      <span className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2 py-0.5 text-[10px] font-bold">
+                        {selectedCharacter.role}
+                      </span>
+                    )}
+                    {selectedCharacter.gender && (
+                      <span className="bg-[#f0f0ff] text-[#6060c0] border border-[#dcdcf0] rounded-full px-2 py-0.5 text-[10px] font-bold">
+                        {selectedCharacter.gender}
+                      </span>
+                    )}
                   </div>
                   <p className="m-0 text-[12px] text-[#94859d] leading-relaxed">
-                    {selectedCharacter.shortBio}
+                    {selectedCharacter.description}
                   </p>
                 </div>
               </div>
@@ -327,14 +379,10 @@ export default function Page() {
             {/* Persona Info */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="m-0 text-[15px] text-[#72508c]">
-                  페르소나 정보
-                </h4>
+                <h4 className="m-0 text-[15px] text-[#72508c]">페르소나 정보</h4>
                 <button
                   type="button"
-                  onClick={
-                    selectedPersona ? openEditPersonaModal : openAddPersonaModal
-                  }
+                  onClick={selectedPersona ? openEditPersonaModal : openAddPersonaModal}
                   className="rounded-full px-4 py-2 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
                 >
                   {selectedPersona ? "페르소나 수정" : "페르소나 추가"}
@@ -344,17 +392,13 @@ export default function Page() {
               {selectedPersona ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                    <b className="block text-[#72508c] text-[12px] mb-1">
-                      성격
-                    </b>
+                    <b className="block text-[#72508c] text-[12px] mb-1">성격</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
                       {selectedPersona.personality}
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                    <b className="block text-[#72508c] text-[12px] mb-1">
-                      말투 · 말버릇
-                    </b>
+                    <b className="block text-[#72508c] text-[12px] mb-1">말투 · 말버릇</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
                       {selectedPersona.speechStyle}
                       <br />
@@ -364,9 +408,7 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                    <b className="block text-[#72508c] text-[12px] mb-1">
-                      인사말
-                    </b>
+                    <b className="block text-[#72508c] text-[12px] mb-1">인사말</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
                       시작: {selectedPersona.greetingStart}
                       <br />
@@ -374,18 +416,13 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                    <b className="block text-[#72508c] text-[12px] mb-1">
-                      배경
-                    </b>
+                    <b className="block text-[#72508c] text-[12px] mb-1">배경</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                      {selectedPersona.historicalBackground} ·{" "}
-                      {selectedPersona.backgroundDescription}
+                      {selectedPersona.historicalBackground} · {selectedPersona.backgroundDescription}
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                    <b className="block text-[#72508c] text-[12px] mb-1">
-                      태그
-                    </b>
+                    <b className="block text-[#72508c] text-[12px] mb-1">태그</b>
                     <div className="flex gap-1 flex-wrap mt-1">
                       {selectedPersona.tags.map((tag) => (
                         <span
@@ -398,9 +435,7 @@ export default function Page() {
                     </div>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                    <b className="block text-[#72508c] text-[12px] mb-1">
-                      승인 상태
-                    </b>
+                    <b className="block text-[#72508c] text-[12px] mb-1">승인 상태</b>
                     <span
                       className={`inline-block border rounded-full px-2.5 py-1 text-[10px] font-bold ${
                         APPROVAL_STYLE[selectedPersona.approvalStatus]
@@ -410,9 +445,7 @@ export default function Page() {
                     </span>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
-                    <b className="block text-[#72508c] text-[12px] mb-1">
-                      시스템 프롬프트
-                    </b>
+                    <b className="block text-[#72508c] text-[12px] mb-1">시스템 프롬프트</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
                       {selectedPersona.systemPrompt}
                     </p>
@@ -422,9 +455,7 @@ export default function Page() {
                 <div className="text-center py-8 text-[13px] text-[#94859d]">
                   아직 등록된 페르소나가 없습니다.
                   <br />
-                  <span className="text-[11px]">
-                    [페르소나 추가] 버튼을 눌러 등록하세요.
-                  </span>
+                  <span className="text-[11px]">[페르소나 추가] 버튼을 눌러 등록하세요.</span>
                 </div>
               )}
             </div>
@@ -465,65 +496,63 @@ export default function Page() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={fieldWrapCls}>
-                <label className={labelCls}>이름</label>
+                <label className={labelCls}>이름 <span className="text-[#f0a0b0]">*</span></label>
                 <input
                   type="text"
                   value={characterForm.name}
-                  onChange={(e) => updateCharacterField("name", e.target.value)}
+                  onChange={(e) => setCharacterForm((p) => ({ ...p, name: e.target.value }))}
                   placeholder="캐릭터 이름"
                   className={inputCls}
                 />
               </div>
               <div className={fieldWrapCls}>
-                <label className={labelCls}>역할</label>
+                <label className={labelCls}>역할 <span className="text-[#f0a0b0]">*</span></label>
                 <input
                   type="text"
-                  value={characterForm.role}
-                  onChange={(e) => updateCharacterField("role", e.target.value)}
+                  value={characterForm.role ?? ""}
+                  onChange={(e) => setCharacterForm((p) => ({ ...p, role: e.target.value }))}
                   placeholder="예: 주인공, 조력자, 악역"
                   className={inputCls}
                 />
               </div>
               <div className={fieldWrapCls}>
-                <label className={labelCls}>성별</label>
+                <label className={labelCls}>성별 <span className="text-[#f0a0b0]">*</span></label>
                 <input
                   type="text"
-                  value={characterForm.gender}
-                  onChange={(e) =>
-                    updateCharacterField("gender", e.target.value)
-                  }
+                  value={characterForm.gender ?? ""}
+                  onChange={(e) => setCharacterForm((p) => ({ ...p, gender: e.target.value }))}
                   placeholder="예: 여성, 남성, 미상"
                   className={inputCls}
                 />
               </div>
               <div className={fieldWrapCls}>
-                <label className={labelCls}>이모지</label>
+                <label className={labelCls}>이모지 <span className="text-[#f0a0b0]">*</span></label>
                 <input
                   type="text"
-                  value={characterForm.emoji}
-                  onChange={(e) => updateCharacterField("emoji", e.target.value)}
+                  value={characterForm.emoji ?? ""}
+                  onChange={(e) => setCharacterForm((p) => ({ ...p, emoji: e.target.value }))}
                   placeholder="예: 🧙"
                   className={inputCls}
                 />
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
-                <label className={labelCls}>프로필 이미지 URL</label>
+                <label className={labelCls}>프로필 이미지 URL <span className="text-[#f0a0b0]">*</span></label>
                 <input
                   type="text"
-                  value={characterForm.profileImageUrl}
+                  value={characterForm.profile_image_url ?? ""}
                   onChange={(e) =>
-                    updateCharacterField("profileImageUrl", e.target.value)
+                    setCharacterForm((p) => ({ ...p, profile_image_url: e.target.value }))
                   }
                   placeholder="프로필 이미지 URL"
                   className={inputCls}
                 />
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
-                <label className={labelCls}>소개</label>
+                <label className={labelCls}>소개 <span className="text-[#f0a0b0]">*</span></label>
                 <textarea
-                  value={characterForm.description}
+                  value={characterForm.description ?? ""}
                   onChange={(e) =>
-                    updateCharacterField("description", e.target.value)
+                    setCharacterForm((p) => ({ ...p, description: e.target.value }))
                   }
                   placeholder="캐릭터 소개를 입력하세요"
                   rows={4}
@@ -542,13 +571,11 @@ export default function Page() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  console.log("캐릭터 저장:", characterForm);
-                  setIsCharacterModalOpen(false);
-                }}
-                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2]"
+                onClick={handleCharacterSave}
+                disabled={isSaving}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] disabled:opacity-50"
               >
-                저장
+                {isSaving ? "저장 중..." : "저장"}
               </button>
             </div>
           </div>
@@ -568,7 +595,6 @@ export default function Page() {
               캐릭터명 기반으로 AI 자동완성을 사용하거나 직접 입력하세요.
             </p>
 
-            {/* LLM 자동완성 */}
             <div className={fieldWrapCls + " mb-3"}>
               <label className={labelCls}>캐릭터명으로 자동완성</label>
               <div className="flex gap-2">
@@ -589,17 +615,13 @@ export default function Page() {
               </div>
             </div>
 
-            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
-              기본 정보
-            </p>
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">기본 정보</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div className={fieldWrapCls + " sm:col-span-2"}>
                 <label className={labelCls}>성격</label>
                 <textarea
                   value={personaForm.personality}
-                  onChange={(e) =>
-                    updatePersonaField("personality", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("personality", e.target.value)}
                   rows={2}
                   placeholder="캐릭터의 성격을 입력하세요"
                   className={textareaCls}
@@ -610,9 +632,7 @@ export default function Page() {
                 <input
                   type="text"
                   value={personaForm.speechStyle}
-                  onChange={(e) =>
-                    updatePersonaField("speechStyle", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("speechStyle", e.target.value)}
                   placeholder="예: 반말 · 차분함"
                   className={inputCls}
                 />
@@ -622,9 +642,7 @@ export default function Page() {
                 <input
                   type="text"
                   value={personaForm.catchphrase}
-                  onChange={(e) =>
-                    updatePersonaField("catchphrase", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("catchphrase", e.target.value)}
                   placeholder="자주 쓰는 표현"
                   className={inputCls}
                 />
@@ -633,9 +651,7 @@ export default function Page() {
                 <label className={labelCls}>소개</label>
                 <textarea
                   value={personaForm.introduction}
-                  onChange={(e) =>
-                    updatePersonaField("introduction", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("introduction", e.target.value)}
                   rows={2}
                   placeholder="캐릭터 소개"
                   className={textareaCls}
@@ -653,17 +669,13 @@ export default function Page() {
               </div>
             </div>
 
-            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
-              인사말
-            </p>
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">인사말</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div className={fieldWrapCls}>
                 <label className={labelCls}>시작 인사말</label>
                 <textarea
                   value={personaForm.greetingStart}
-                  onChange={(e) =>
-                    updatePersonaField("greetingStart", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("greetingStart", e.target.value)}
                   rows={2}
                   placeholder="대화 시작 시 인사말"
                   className={textareaCls}
@@ -673,9 +685,7 @@ export default function Page() {
                 <label className={labelCls}>종료 인사말</label>
                 <textarea
                   value={personaForm.greetingEnd}
-                  onChange={(e) =>
-                    updatePersonaField("greetingEnd", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("greetingEnd", e.target.value)}
                   rows={2}
                   placeholder="대화 종료 시 인사말"
                   className={textareaCls}
@@ -683,17 +693,13 @@ export default function Page() {
               </div>
             </div>
 
-            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
-              배경 정보
-            </p>
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">배경 정보</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div className={fieldWrapCls + " sm:col-span-2"}>
                 <label className={labelCls}>시작 상황</label>
                 <textarea
                   value={personaForm.startingSituation}
-                  onChange={(e) =>
-                    updatePersonaField("startingSituation", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("startingSituation", e.target.value)}
                   rows={2}
                   placeholder="대화가 시작되는 상황 설명"
                   className={textareaCls}
@@ -704,9 +710,7 @@ export default function Page() {
                 <input
                   type="text"
                   value={personaForm.historicalBackground}
-                  onChange={(e) =>
-                    updatePersonaField("historicalBackground", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("historicalBackground", e.target.value)}
                   placeholder="예: 동화 시대의 왕국"
                   className={inputCls}
                 />
@@ -716,27 +720,21 @@ export default function Page() {
                 <input
                   type="text"
                   value={personaForm.backgroundDescription}
-                  onChange={(e) =>
-                    updatePersonaField("backgroundDescription", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("backgroundDescription", e.target.value)}
                   placeholder="예: 거울의 방"
                   className={inputCls}
                 />
               </div>
             </div>
 
-            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
-              유저 설정
-            </p>
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">유저 설정</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div className={fieldWrapCls}>
                 <label className={labelCls}>유저 역할</label>
                 <input
                   type="text"
                   value={personaForm.userRole}
-                  onChange={(e) =>
-                    updatePersonaField("userRole", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("userRole", e.target.value)}
                   placeholder="예: 왕국의 백성"
                   className={inputCls}
                 />
@@ -746,26 +744,20 @@ export default function Page() {
                 <input
                   type="text"
                   value={personaForm.userRelationship}
-                  onChange={(e) =>
-                    updatePersonaField("userRelationship", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("userRelationship", e.target.value)}
                   placeholder="예: 질문을 던지는 존재"
                   className={inputCls}
                 />
               </div>
             </div>
 
-            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
-              시스템 설정
-            </p>
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">시스템 설정</p>
             <div className="grid grid-cols-1 gap-3">
               <div className={fieldWrapCls}>
                 <label className={labelCls}>시스템 프롬프트</label>
                 <textarea
                   value={personaForm.systemPrompt}
-                  onChange={(e) =>
-                    updatePersonaField("systemPrompt", e.target.value)
-                  }
+                  onChange={(e) => updatePersonaField("systemPrompt", e.target.value)}
                   rows={4}
                   placeholder="LLM에 전달할 시스템 프롬프트"
                   className={textareaCls}
