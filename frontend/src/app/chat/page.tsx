@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AppShell } from "../../components/layout/AppShell";
 import { Card } from "../../components/ui/Card";
 import { mockConversationSessions, mockMessagesByCharacterId } from "../../data/mock";
@@ -24,6 +25,11 @@ function ConversationCard({ session }: { session: (typeof mockConversationSessio
 
 export default async function ChatPage({ searchParams }: ChatPageProps) {
   const viewer = getViewer(await searchParams);
+
+  if (!viewer.isMember) {
+    redirect(`/login?message=${encodeURIComponent("대화를 이어가려면 로그인이 필요합니다.")}`);
+  }
+
   const selected = mockConversationSessions[0];
   const messages = mockMessagesByCharacterId[selected.characterId] ?? [];
 
@@ -44,7 +50,10 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         <details className="rounded-[28px] border border-[var(--line)] bg-[var(--surface-soft)] p-3 lg:hidden">
           <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl px-2 py-2 font-black text-[var(--accent-strong)] [&::-webkit-details-marker]:hidden">
             <span>내 대화</span>
-            <span aria-hidden="true">▾▴</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="h-4 w-4">
+              <rect x="6" y="4.5" width="12" height="15" rx="3.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M7.5 9.25h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
           </summary>
           <div className="mt-3 grid gap-3">
             <div className="flex gap-2">

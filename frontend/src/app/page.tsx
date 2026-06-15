@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: PageProps) {
                   <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--foreground)]">{session.title}</h2>
                   <p className="mt-1 text-xs font-bold text-[var(--accent-strong)]">{session.bookTitle} · {session.characterName}</p>
                   <p className="mt-3 flex-1 text-sm leading-6 text-[var(--muted)]">{session.lastMessage}</p>
-                  <Link href="/chat?auth=member" className="mt-4 w-fit rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-black text-white">내 대화 이어가기</Link>
+                  <Link href={`/chat/${session.characterId}?auth=member`} className="mt-4 w-fit rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-black text-white">내 대화 이어가기</Link>
                 </Card>
               ))}
             </div>

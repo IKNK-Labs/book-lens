@@ -28,9 +28,9 @@ export function AppHeader({ viewer }: { viewer: Viewer }) {
                   <Link href="/settings?auth=member" className="rounded-2xl px-3 py-2 font-bold hover:bg-[var(--surface-soft)]">
                     마이페이지
                   </Link>
-                  <button type="button" className="rounded-2xl px-3 py-2 text-left font-bold text-[var(--muted)] hover:bg-[var(--surface-soft)]">
+                  <Link href="/" className="rounded-2xl px-3 py-2 font-bold text-[var(--muted)] hover:bg-[var(--surface-soft)]">
                     로그아웃
-                  </button>
+                  </Link>
                 </div>
               </details>
             </>

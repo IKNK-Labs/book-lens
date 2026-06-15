@@ -56,7 +56,7 @@ export default async function BookDetailPage({ params, searchParams }: PageProps
               {viewer.isMember ? (
                 <>
                   <Link href={storyHref} className="rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white">동화 구연 시작</Link>
-                  <Link href="/chat?auth=member" className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">캐릭터와 대화</Link>
+                  <Link href={`/chat/${book.featuredCharacterId}?auth=member`} className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">캐릭터와 대화</Link>
                 </>
               ) : (
                 <>
