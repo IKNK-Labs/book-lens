@@ -29,6 +29,9 @@ services:
     restart: unless-stopped
 
   django:
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     build:
       context: ./backend
       dockerfile: Dockerfile
