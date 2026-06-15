@@ -1,13 +1,97 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Swal from "sweetalert2";
+import { adminBooksApi, ApiError } from "@/lib/api";
+
+const REQUIRED_FIELDS: { key: string; label: string }[] = [
+  { key: "title", label: "제목" },
+  { key: "author", label: "저자" },
+  { key: "publisher", label: "출판사" },
+];
 
 export default function Page() {
+  const router = useRouter();
+
+  const [isbn, setIsbn] = useState("");
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [publisher, setPublisher] = useState("");
   const [synopsis, setSynopsis] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fieldValues: Record<string, string> = { isbn, title, author, publisher };
+
+  const validate = () => {
+    const missing = REQUIRED_FIELDS.filter((f) => !fieldValues[f.key].trim());
+    if (missing.length > 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "필수 항목 미입력",
+        html: missing.map((f) => `<b>${f.label}</b>`).join(", ") + " 칸을 입력해주세요.",
+        confirmButtonText: "확인",
+        confirmButtonColor: "#c7a8ff",
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validate()) return;
+
+    setIsSubmitting(true);
+    try {
+      await adminBooksApi.create({
+        isbn: isbn.trim(),
+        title: title.trim(),
+        author: author.trim(),
+        publisher: publisher.trim(),
+        description: synopsis.trim(),
+      });
+
+      await Swal.fire({
+        icon: "success",
+        title: "등록되었습니다",
+        text: `"${title.trim()}" 동화책이 성공적으로 등록되었습니다.`,
+        confirmButtonText: "확인",
+        confirmButtonColor: "#c7a8ff",
+      });
+
+      router.push("/admin/books");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        // DRF 필드 에러 → 읽기 쉬운 메시지로 변환
+        const messages = Object.entries(err.data)
+          .map(([field, msg]) => {
+            const label = REQUIRED_FIELDS.find((f) => f.key === field)?.label ?? field;
+            const text = Array.isArray(msg) ? (msg as string[]).join(" ") : String(msg);
+            return `<b>${label}</b>: ${text}`;
+          })
+          .join("<br>");
+
+        Swal.fire({
+          icon: "error",
+          title: "저장 실패",
+          html: messages || "저장에 실패했습니다. 잠시 후 다시 시도해주세요.",
+          confirmButtonText: "확인",
+          confirmButtonColor: "#c7a8ff",
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "네트워크 오류",
+          text: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
+          confirmButtonText: "확인",
+          confirmButtonColor: "#c7a8ff",
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div>
@@ -30,9 +114,11 @@ export default function Page() {
           </Link>
           <button
             type="button"
-            className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+            onClick={handleSave}
+            disabled={isSubmitting}
+            className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap disabled:opacity-50"
           >
-            저장
+            {isSubmitting ? "저장 중..." : "저장"}
           </button>
         </div>
       </div>
@@ -58,7 +144,20 @@ export default function Page() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-              제목
+              ISBN
+            </label>
+            <input
+              type="text"
+              value={isbn}
+              onChange={(e) => setIsbn(e.target.value)}
+              placeholder="예: 9788925557373"
+              className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+            />
+          </div>
+
+          <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+            <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+              제목 <span className="text-[#f0a0b0]">*</span>
             </label>
             <input
               type="text"
@@ -71,7 +170,7 @@ export default function Page() {
 
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-              저자
+              저자 <span className="text-[#f0a0b0]">*</span>
             </label>
             <input
               type="text"
@@ -84,7 +183,7 @@ export default function Page() {
 
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-              출판사
+              출판사 <span className="text-[#f0a0b0]">*</span>
             </label>
             <input
               type="text"

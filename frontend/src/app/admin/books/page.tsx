@@ -6,6 +6,7 @@ import BookCard from "@/components/admin/BookCard";
 
 const SAMPLE_BOOK = {
   id: 1,
+  isbn: "9788925557373",
   title: "백설공주",
   author: "그림 형제",
   publisher: "삼성출판사",
@@ -13,6 +14,7 @@ const SAMPLE_BOOK = {
 };
 
 const MOCK_AUTOCOMPLETE = {
+  isbn: "9788925557373",
   title: "백설공주",
   author: "그림 형제",
   publisher: "삼성출판사",
@@ -29,6 +31,7 @@ const MOCK_CHARACTER_AUTOCOMPLETE = {
 };
 
 type BookForm = {
+  isbn: string;
   title: string;
   author: string;
   publisher: string;
@@ -59,6 +62,7 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<"llm" | "isbn">("llm");
   const [autocompleteTitle, setAutocompleteTitle] = useState("");
   const [form, setForm] = useState<BookForm>({
+    isbn: SAMPLE_BOOK.isbn,
     title: SAMPLE_BOOK.title,
     author: SAMPLE_BOOK.author,
     publisher: SAMPLE_BOOK.publisher,
@@ -67,6 +71,7 @@ export default function Page() {
 
   const openModal = () => {
     setForm({
+      isbn: SAMPLE_BOOK.isbn,
       title: SAMPLE_BOOK.title,
       author: SAMPLE_BOOK.author,
       publisher: SAMPLE_BOOK.publisher,
@@ -81,6 +86,7 @@ export default function Page() {
 
   const handleAutocomplete = () => {
     setForm({
+      isbn: MOCK_AUTOCOMPLETE.isbn,
       title: MOCK_AUTOCOMPLETE.title,
       author: MOCK_AUTOCOMPLETE.author,
       publisher: MOCK_AUTOCOMPLETE.publisher,
@@ -219,6 +225,19 @@ export default function Page() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+                  ISBN
+                </label>
+                <input
+                  type="text"
+                  value={form.isbn}
+                  onChange={(e) => updateField("isbn", e.target.value)}
+                  placeholder="예: 9788925557373"
+                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                />
+              </div>
+
               <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
                 <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
                   제목
