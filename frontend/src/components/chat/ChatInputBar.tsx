@@ -1,5 +1,4 @@
 export function ChatInputBar() {
-  // TODO: POST /api/chat/sessions/{sessionId}/messages 연결 예정
   return (
     <div className="border-t border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="flex items-end gap-3 rounded-[24px] border border-[var(--line)] bg-[var(--surface-soft)] p-2">
@@ -17,7 +16,6 @@ export function ChatInputBar() {
           전송
         </button>
       </div>
-      <p className="mt-2 text-xs text-[var(--muted)]">TODO: POST /api/chat/sessions/{"{sessionId}"}/messages/ 연결 예정</p>
     </div>
   );
 }
