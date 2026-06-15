@@ -12,6 +12,16 @@ export function UserPreferenceForm() {
   return (
     <div className="grid gap-5">
       <Card>
+        <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">캐릭터가 부를 이름</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">동화 속 캐릭터가 대화에서 사용할 친근한 이름을 정합니다.</p>
+        <input
+          className="mt-4 w-full rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] p-4 text-sm outline-none placeholder:text-[var(--muted)]"
+          defaultValue="제석"
+          aria-label="캐릭터가 부를 이름"
+        />
+      </Card>
+
+      <Card>
         <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">대상 기준</h2>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">정확한 생년월일이 아니라, AI 응답을 맞출 대상 연령대를 선택합니다.</p>
         <div className="mt-4 flex flex-wrap gap-2">

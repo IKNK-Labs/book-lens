@@ -10,7 +10,6 @@ const rows = [
 ];
 
 export function PreferenceSummary() {
-  // TODO: PATCH /api/users/me/settings 연결 예정
   return (
     <Card className="lg:sticky lg:top-24">
       <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">현재 설정 요약</h2>
@@ -30,7 +29,6 @@ export function PreferenceSummary() {
           기본값으로 되돌리기
         </button>
       </div>
-      <p className="mt-3 text-xs leading-5 text-[var(--muted)]">TODO: PATCH /api/users/me/settings/ 연결 예정</p>
     </Card>
   );
 }

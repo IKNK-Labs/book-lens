@@ -27,7 +27,7 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
       <section className="overflow-hidden rounded-[32px] border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)]">
         <div className="border-b border-[var(--line)] bg-[var(--surface-soft)] px-5 py-4">
           <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--foreground)]">{character.name}와의 대화</h2>
-          <p className="mt-1 text-xs text-[var(--muted)]">현재는 mock 메시지 기반 UI shell입니다.</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">저장된 캐릭터 대화를 이어가고 있어요.</p>
         </div>
         <div className="grid min-h-[440px] content-start gap-4 p-5">
           {messages.map((message) => (
