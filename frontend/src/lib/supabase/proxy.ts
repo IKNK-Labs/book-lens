@@ -1,10 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { asSessionCookie } from "./cookies";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
+const USER_PROTECTED_PATHS = ["/books", "/settings", "/chat"];
 
 function isAdminRoute(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
+function isUserProtectedRoute(pathname: string) {
+  return USER_PROTECTED_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
 }
 
 function redirectWithCookies(
@@ -43,7 +51,11 @@ export async function updateSession(request: NextRequest) {
           });
 
           cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options);
+            supabaseResponse.cookies.set(
+              name,
+              value,
+              asSessionCookie(options),
+            );
           });
         },
       },
@@ -52,12 +64,18 @@ export async function updateSession(request: NextRequest) {
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const pathname = request.nextUrl.pathname;
+  const userId = claimsData?.claims.sub;
+
+  if (isUserProtectedRoute(pathname) && !userId) {
+    return redirectWithCookies(
+      supabaseResponse,
+      new URL("/login", request.url),
+    );
+  }
 
   if (!isAdminRoute(pathname) || pathname === ADMIN_LOGIN_PATH) {
     return supabaseResponse;
   }
-
-  const userId = claimsData?.claims.sub;
 
   if (!userId) {
     return redirectWithCookies(
