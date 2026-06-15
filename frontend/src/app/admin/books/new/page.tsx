@@ -10,6 +10,7 @@ const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: "title", label: "제목" },
   { key: "author", label: "저자" },
   { key: "publisher", label: "출판사" },
+  { key: "synopsis", label: "줄거리" },
 ];
 
 export default function Page() {
@@ -22,7 +23,7 @@ export default function Page() {
   const [synopsis, setSynopsis] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fieldValues: Record<string, string> = { isbn, title, author, publisher };
+  const fieldValues: Record<string, string> = { isbn, title, author, publisher, synopsis };
 
   const validate = () => {
     const missing = REQUIRED_FIELDS.filter((f) => !fieldValues[f.key].trim());
@@ -196,7 +197,7 @@ export default function Page() {
 
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-              줄거리
+              줄거리 <span className="text-[#f0a0b0]">*</span>
             </label>
             <textarea
               value={synopsis}

@@ -21,6 +21,43 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ── Characters ─────────────────────────────────────────
+
+export type CharacterPayload = {
+  book_id: number;
+  name: string;
+  role?: string;
+  gender?: string;
+  emoji?: string;
+  description?: string;
+  profile_image_url?: string;
+};
+
+export type CharacterResponse = CharacterPayload & {
+  id: number;
+  created_at: string | null;
+};
+
+export const adminCharactersApi = {
+  list: (bookId: number) =>
+    request<CharacterResponse[]>(`/api/admin/characters?book_id=${bookId}`),
+
+  create: (payload: CharacterPayload) =>
+    request<CharacterResponse>("/api/admin/characters", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  update: (id: number, payload: Partial<CharacterPayload>) =>
+    request<CharacterResponse>(`/api/admin/characters/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  delete: (id: number) =>
+    request<void>(`/api/admin/characters/${id}`, { method: "DELETE" }),
+};
+
 // ── Books ──────────────────────────────────────────────
 
 export type BookPayload = {
@@ -33,25 +70,25 @@ export type BookPayload = {
 
 export type BookResponse = BookPayload & {
   id: number;
-  created_at: string;
+  updated_at: string;
   content: { content: string } | null;
 };
 
 export const adminBooksApi = {
   create: (payload: BookPayload) =>
-    request<BookResponse>("/api/admin/books/", {
+    request<BookResponse>("/api/admin/books", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
   update: (id: number, payload: Partial<BookPayload>) =>
-    request<BookResponse>(`/api/admin/books/${id}/`, {
+    request<BookResponse>(`/api/admin/books/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
 
   delete: (id: number) =>
-    request<void>(`/api/admin/books/${id}/`, { method: "DELETE" }),
+    request<void>(`/api/admin/books/${id}`, { method: "DELETE" }),
 
-  list: () => request<BookResponse[]>("/api/admin/books/"),
+  list: () => request<BookResponse[]>("/api/admin/books"),
 };
