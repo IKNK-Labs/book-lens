@@ -69,13 +69,9 @@ export default async function Page({ searchParams }: PageProps) {
           </button>
         </form>
 
-        <div className="mt-4 flex items-center justify-between gap-3 text-[11px] text-[#94859d]">
+        <div className="mt-4 text-center text-[11px] text-[#94859d]">
           <Link href="/login" className="text-[#8b69a3] font-bold">
             사용자 로그인
-          </Link>
-          {/* TODO: Remove this preview link when admin route protection is complete. */}
-          <Link href="/admin" className="text-[#8b69a3] font-bold">
-            대시보드 미리보기
           </Link>
         </div>
       </section>
