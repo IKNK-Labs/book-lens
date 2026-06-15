@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getSafeNext } from "@/lib/authNext";
 import { createClient } from "@/lib/supabase/server";
 
 function getFormValue(formData: FormData, key: string) {
@@ -9,16 +10,27 @@ function getFormValue(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function redirectWithError(message: string, path = "/login"): never {
-  redirect(`${path}?error=${encodeURIComponent(message)}`);
+function getErrorRedirect(message: string, path = "/login", next?: string) {
+  const params = new URLSearchParams({ error: message });
+
+  if (next) {
+    params.set("next", next);
+  }
+
+  return `${path}?${params.toString()}`;
+}
+
+function redirectWithError(message: string, path = "/login", next?: string): never {
+  redirect(getErrorRedirect(message, path, next));
 }
 
 export async function login(formData: FormData) {
   const email = getFormValue(formData, "email");
   const password = getFormValue(formData, "password");
+  const safeNext = getSafeNext(getFormValue(formData, "next"));
 
   if (!email || !password) {
-    redirectWithError("이메일과 비밀번호를 입력해 주세요.");
+    redirectWithError("이메일과 비밀번호를 입력해 주세요.", "/login", safeNext);
   }
 
   const supabase = await createClient();
@@ -28,10 +40,10 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
-    redirectWithError("로그인 정보를 다시 확인해 주세요.");
+    redirectWithError("로그인 정보를 다시 확인해 주세요.", "/login", safeNext);
   }
 
-  redirect("/books");
+  redirect(safeNext);
 }
 
 export async function signUp(formData: FormData) {
@@ -78,7 +90,8 @@ export async function signUp(formData: FormData) {
   );
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData: FormData) {
+  const safeNext = getSafeNext(getFormValue(formData, "next"));
   const requestHeaders = await headers();
   const origin = requestHeaders.get("origin") ?? "http://localhost:3000";
   const supabase = await createClient();
@@ -86,7 +99,7 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback?next=/settings`,
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`,
     },
   });
 
@@ -96,11 +109,11 @@ export async function signInWithGoogle() {
       message: error.message,
       status: error.status,
     });
-    redirectWithError(`Google 로그인 실패: ${error.message}`);
+    redirectWithError(`Google 로그인 실패: ${error.message}`, "/login", safeNext);
   }
 
   if (!data.url) {
-    redirectWithError("Google 로그인 URL을 만들지 못했어요.");
+    redirectWithError("Google 로그인 URL을 만들지 못했어요.", "/login", safeNext);
   }
 
   redirect(data.url);

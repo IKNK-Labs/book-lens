@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "../../../components/layout/AppShell";
 import { Card } from "../../../components/ui/Card";
 import { mockBooks, mockStoryScenesByBookId } from "../../../data/mock";
+import { getLoginRedirect } from "../../../lib/authNext";
 import { getViewer } from "../../../lib/mockAuth";
 
 type PageProps = { params: Promise<{ bookId: string }>; searchParams: Promise<{ auth?: string }> };
@@ -11,7 +12,7 @@ export default async function StoryPage({ params, searchParams }: PageProps) {
   const [{ bookId }, authParams] = await Promise.all([params, searchParams]);
   const viewer = await getViewer(authParams);
   if (!viewer.isMember) {
-    redirect(`/login?message=${encodeURIComponent("동화 구연을 시작하려면 로그인이 필요합니다.")}`);
+    redirect(getLoginRedirect("동화 구연을 시작하려면 로그인이 필요합니다.", `/story/${bookId}`));
   }
 
   const book = mockBooks.find((item) => item.id === bookId);

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "../../components/layout/AppShell";
 import { Card } from "../../components/ui/Card";
 import { mockConversationSessions, mockMessagesByCharacterId } from "../../data/mock";
+import { getLoginRedirect } from "../../lib/authNext";
 import { getViewer } from "../../lib/mockAuth";
 
 type ChatPageProps = { searchParams: Promise<{ auth?: string }> };
@@ -27,7 +28,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const viewer = await getViewer(await searchParams);
 
   if (!viewer.isMember) {
-    redirect(`/login?message=${encodeURIComponent("대화를 이어가려면 로그인이 필요합니다.")}`);
+    redirect(getLoginRedirect("대화를 이어가려면 로그인이 필요합니다.", "/chat"));
   }
 
   const selected = mockConversationSessions[0];

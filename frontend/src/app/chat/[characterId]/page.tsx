@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "../../../components/layout/AppShell";
 import { CharacterChatShell } from "../../../components/chat/CharacterChatShell";
+import { getLoginRedirect } from "../../../lib/authNext";
 import { getViewer } from "../../../lib/mockAuth";
 
 type ChatPageProps = {
@@ -13,7 +14,7 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
   const viewer = await getViewer(authParams);
 
   if (!viewer.isMember) {
-    redirect(`/login?message=${encodeURIComponent("캐릭터와 대화하려면 로그인이 필요합니다.")}`);
+    redirect(getLoginRedirect("캐릭터와 대화하려면 로그인이 필요합니다.", `/chat/${characterId}`));
   }
 
   return (

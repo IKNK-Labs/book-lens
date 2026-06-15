@@ -40,8 +40,8 @@ function hasSupabaseEnv() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 }
 
-function isMockMemberPreviewEnabled() {
-  return process.env.BOOK_LENS_ENABLE_MOCK_MEMBER_PREVIEW === "true";
+function isMockPreviewAllowed() {
+  return process.env.NODE_ENV !== "production" && process.env.ENABLE_MOCK_AUTH_PREVIEW === "true";
 }
 
 function readString(value: unknown) {
@@ -52,16 +52,16 @@ export function getGuestViewer(): Viewer {
   return guestViewer;
 }
 
-export async function getViewer(searchParams?: AuthSearchParams): Promise<Viewer> {
+async function getSupabaseUserViewerIfAvailable(): Promise<Viewer | null> {
   if (!hasSupabaseEnv()) {
-    return searchParams?.auth === "member" && isMockMemberPreviewEnabled() ? mockMemberViewer : guestViewer;
+    return null;
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
 
   if (error || !data.user) {
-    return searchParams?.auth === "member" && isMockMemberPreviewEnabled() ? mockMemberViewer : guestViewer;
+    return null;
   }
 
   const metadata = data.user.user_metadata ?? {};
@@ -80,6 +80,20 @@ export async function getViewer(searchParams?: AuthSearchParams): Promise<Viewer
     provider,
     isPreview: false,
   };
+}
+
+export async function getViewer(searchParams?: AuthSearchParams): Promise<Viewer> {
+  const supabaseUserViewer = await getSupabaseUserViewerIfAvailable();
+
+  if (supabaseUserViewer) {
+    return supabaseUserViewer;
+  }
+
+  if (isMockPreviewAllowed() && searchParams?.auth === "member") {
+    return mockMemberViewer;
+  }
+
+  return guestViewer;
 }
 
 export function withAuthMember(path: string) {

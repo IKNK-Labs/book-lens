@@ -31,7 +31,7 @@ export default async function Page({ searchParams }: PageProps) {
         </section>
 
         <section>
-          <SectionHeader title={viewer.isMember ? "맞춤 추천 동화" : "지금 볼 수 있는 동화"} description={viewer.isMember ? "제석님의 관심 주제와 최근 대화를 바탕으로 골랐어요." : "먼저 이야기를 살펴보고, 마음에 드는 동화를 선택해 보세요."} />
+          <SectionHeader title={viewer.isMember ? "맞춤 추천 동화" : "지금 볼 수 있는 동화"} description={viewer.isMember ? `${viewer.displayName}의 관심 주제와 최근 대화를 바탕으로 골랐어요.` : "먼저 이야기를 살펴보고, 마음에 드는 동화를 선택해 보세요."} />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {featuredBooks.map((book) => (
               <BookCard key={book.id} book={book} isMember={viewer.isMember} isPreview={viewer.isPreview} />

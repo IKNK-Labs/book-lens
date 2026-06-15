@@ -4,6 +4,7 @@ import { AppShell } from "../../../components/layout/AppShell";
 import { Card } from "../../../components/ui/Card";
 import { Chip } from "../../../components/ui/Chip";
 import { mockBooks, mockCharacters } from "../../../data/mock";
+import { appendLoginNext } from "../../../lib/authNext";
 import { getViewer } from "../../../lib/mockAuth";
 
 type PageProps = {
@@ -19,7 +20,12 @@ export default async function BookDetailPage({ params, searchParams }: PageProps
   if (!book) notFound();
 
   const characters = mockCharacters.filter((character) => character.bookTitle === book.title);
-  const storyHref = `/story/${book.id}${viewer.isPreview ? "?auth=member" : ""}`;
+  const storyPath = `/story/${book.id}`;
+  const chatPath = `/chat/${book.featuredCharacterId}`;
+  const storyHref = `${storyPath}${viewer.isPreview ? "?auth=member" : ""}`;
+  const chatHref = `${chatPath}${viewer.isPreview ? "?auth=member" : ""}`;
+  const storyLoginHref = appendLoginNext("/login", storyPath);
+  const chatLoginHref = appendLoginNext("/login", chatPath);
 
   return (
     <AppShell viewer={viewer}>
@@ -56,12 +62,12 @@ export default async function BookDetailPage({ params, searchParams }: PageProps
               {viewer.isMember ? (
                 <>
                   <Link href={storyHref} className="rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white">동화 구연 시작</Link>
-                  <Link href={`/chat/${book.featuredCharacterId}${viewer.isPreview ? "?auth=member" : ""}`} className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">캐릭터와 대화</Link>
+                  <Link href={chatHref} className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">캐릭터와 대화</Link>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white">로그인하고 구연 시작</Link>
-                  <Link href="/login" className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">로그인하고 대화</Link>
+                  <Link href={storyLoginHref} className="rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white">로그인하고 구연 시작</Link>
+                  <Link href={chatLoginHref} className="rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]">로그인하고 대화</Link>
                 </>
               )}
             </div>

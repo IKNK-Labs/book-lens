@@ -4,7 +4,7 @@ import { UserPreferenceForm } from "../../components/settings/UserPreferenceForm
 import { PreferenceSummary } from "../../components/settings/PreferenceSummary";
 import { Card } from "../../components/ui/Card";
 import { SectionHeader } from "../../components/ui/SectionHeader";
-import { mockViewerAccount } from "../../data/mock";
+import { getLoginRedirect } from "../../lib/authNext";
 import { getViewer } from "../../lib/mockAuth";
 import { signOut } from "../logout/actions";
 
@@ -14,7 +14,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const viewer = await getViewer(await searchParams);
 
   if (!viewer.isMember) {
-    redirect(`/login?message=${encodeURIComponent("마이페이지를 보려면 로그인이 필요합니다.")}`);
+    redirect(getLoginRedirect("마이페이지를 보려면 로그인이 필요합니다.", "/settings"));
   }
 
   return (
@@ -26,9 +26,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             <div>
               <h2 className="text-xl font-black tracking-[-0.04em] text-[var(--accent-strong)]">계정</h2>
               <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                <div className="rounded-2xl bg-[var(--surface-soft)] p-3"><dt className="font-black text-[var(--muted)]">이름</dt><dd className="mt-1 font-bold text-[var(--foreground)]">{mockViewerAccount.name}</dd></div>
-                <div className="rounded-2xl bg-[var(--surface-soft)] p-3"><dt className="font-black text-[var(--muted)]">이메일</dt><dd className="mt-1 font-bold text-[var(--foreground)]">{mockViewerAccount.email}</dd></div>
-                <div className="rounded-2xl bg-[var(--surface-soft)] p-3"><dt className="font-black text-[var(--muted)]">로그인 방식</dt><dd className="mt-1 font-bold text-[var(--foreground)]">{mockViewerAccount.provider}</dd></div>
+                <div className="rounded-2xl bg-[var(--surface-soft)] p-3"><dt className="font-black text-[var(--muted)]">이름</dt><dd className="mt-1 font-bold text-[var(--foreground)]">{viewer.name}</dd></div>
+                <div className="rounded-2xl bg-[var(--surface-soft)] p-3"><dt className="font-black text-[var(--muted)]">이메일</dt><dd className="mt-1 font-bold text-[var(--foreground)]">{viewer.email || "이메일 정보 없음"}</dd></div>
+                <div className="rounded-2xl bg-[var(--surface-soft)] p-3"><dt className="font-black text-[var(--muted)]">로그인 방식</dt><dd className="mt-1 font-bold text-[var(--foreground)]">{viewer.provider || "알 수 없음"}</dd></div>
               </dl>
             </div>
             <form action={signOut}>

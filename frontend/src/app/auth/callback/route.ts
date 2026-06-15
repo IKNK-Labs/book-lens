@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
+import { getSafeNext } from "@/lib/authNext";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  let next = requestUrl.searchParams.get("next") ?? "/books";
-
-  if (!next.startsWith("/")) {
-    next = "/books";
-  }
+  const next = getSafeNext(requestUrl.searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();
@@ -20,6 +17,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(
-    new URL("/login?error=Google 로그인 인증을 완료하지 못했어요.", requestUrl.origin),
+    new URL(`/login?error=${encodeURIComponent("Google 로그인 인증을 완료하지 못했어요.")}&next=${encodeURIComponent(next)}`, requestUrl.origin),
   );
 }
