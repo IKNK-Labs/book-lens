@@ -45,7 +45,7 @@ export default async function Page({ searchParams }: PageProps) {
           <span className="h-px flex-1 bg-[var(--line)]" />
         </div>
 
-        <form action={login} className="grid gap-3 text-left">
+        <form className="grid gap-3 text-left">
           <input type="hidden" name="next" value={safeNext} />
           <label className="grid gap-2 text-sm font-black text-[var(--accent-strong)]">
             이메일
@@ -55,7 +55,7 @@ export default async function Page({ searchParams }: PageProps) {
             비밀번호
             <input name="password" type="password" autoComplete="current-password" required className="min-h-12 rounded-2xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 text-sm font-bold text-[var(--foreground)] outline-none" placeholder="비밀번호" />
           </label>
-          <button type="submit" className="mt-2 w-full rounded-full border border-[var(--line)] px-5 py-4 text-sm font-black text-[var(--accent-strong)]">
+          <button type="submit" formAction={login} className="mt-2 w-full rounded-full border border-[var(--line)] px-5 py-4 text-sm font-black text-[var(--accent-strong)]">
             이메일로 로그인
           </button>
         </form>
