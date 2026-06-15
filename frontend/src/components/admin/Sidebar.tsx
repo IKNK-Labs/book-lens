@@ -7,7 +7,7 @@ const MENU_ITEMS = [
   { href: "/admin", label: "📊 대시보드" },
   { href: "/admin/books", label: "📚 동화책 관리" },
   { href: "/admin/characters", label: "👥 캐릭터 관리" },
-  { href: "/admin/personas", label: "🎭 페르소나 관리" },
+  { href: "/admin/test-chat", label: "💬 테스트 채팅" },
 ];
 
 export default function Sidebar() {

@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import CharacterCard from "@/components/admin/CharacterCard";
+import {
+  mockBooks,
+  mockCharacters,
+  mockPersonas,
+  type Persona,
+} from "@/data/mock";
 
-// character 테이블 컬럼(name, role, gender, emoji, description, profile_image_url)에 맞춘 폼
 type CharacterForm = {
   name: string;
   role: string;
@@ -13,306 +18,508 @@ type CharacterForm = {
   profileImageUrl: string;
 };
 
-const CURRENT_CHARACTER: CharacterForm = {
-  name: "마녀",
-  role: "악역",
-  gender: "여성",
-  emoji: "🧙",
-  description:
-    "백설공주와 일곱 난쟁이 속 마녀. 거울의 말에 상처받고 질투심을 느끼지만, 답변에서는 폭력적 행동을 미화하지 않도록 설정합니다.",
+type PersonaForm = {
+  personality: string;
+  speechStyle: string;
+  catchphrase: string;
+  greetingStart: string;
+  greetingEnd: string;
+  introduction: string;
+  tags: string;
+  startingSituation: string;
+  historicalBackground: string;
+  backgroundDescription: string;
+  userRole: string;
+  userRelationship: string;
+  systemPrompt: string;
+  approvalStatus: "draft" | "approved" | "rejected";
+};
+
+const EMPTY_CHARACTER_FORM: CharacterForm = {
+  name: "",
+  role: "",
+  gender: "",
+  emoji: "",
+  description: "",
   profileImageUrl: "",
 };
 
-const CHARACTERS = [
-  {
-    emoji: "🧙",
+const EMPTY_PERSONA_FORM: PersonaForm = {
+  personality: "",
+  speechStyle: "",
+  catchphrase: "",
+  greetingStart: "",
+  greetingEnd: "",
+  introduction: "",
+  tags: "",
+  startingSituation: "",
+  historicalBackground: "",
+  backgroundDescription: "",
+  userRole: "",
+  userRelationship: "",
+  systemPrompt: "",
+  approvalStatus: "draft",
+};
+
+const MOCK_CHARACTER_AUTOCOMPLETE: Record<string, CharacterForm> = {
+  마녀: {
     name: "마녀",
-    description: "백설공주 · 질투심 많은 · 반말/차분함",
+    role: "악역",
+    gender: "여성",
+    emoji: "🧙",
+    description:
+      "백설공주와 일곱 난쟁이 속 마녀. 거울의 말에 상처받고 질투심을 느끼지만, 해로운 행동을 미화하지 않도록 설정합니다.",
+    profileImageUrl: "",
   },
-  {
-    emoji: "👸",
+  신데렐라: {
     name: "신데렐라",
-    description: "신데렐라 · 상냥한 · 존댓말/따뜻함",
+    role: "주인공",
+    gender: "여성",
+    emoji: "👸",
+    description:
+      "계모와 언니들의 구박을 받으면서도 희망을 잃지 않는 착한 마음씨의 주인공입니다.",
+    profileImageUrl: "",
   },
-  {
-    emoji: "🐺",
-    name: "늑대",
-    description: "빨간 모자 · 교활한 · 장난스러움",
-  },
-  {
-    emoji: "🦊",
-    name: "여우",
-    description: "어린왕자 · 철학적 · 차분함",
-  },
-];
+};
+
+function getPersonaFormFromMock(characterId: string): PersonaForm {
+  const p = mockPersonas.find((m) => m.characterId === characterId);
+  if (!p) return EMPTY_PERSONA_FORM;
+  return {
+    personality: p.personality,
+    speechStyle: p.speechStyle,
+    catchphrase: p.catchphrase,
+    greetingStart: p.greetingStart,
+    greetingEnd: p.greetingEnd,
+    introduction: p.introduction,
+    tags: p.tags.join(", "),
+    startingSituation: p.startingSituation,
+    historicalBackground: p.historicalBackground,
+    backgroundDescription: p.backgroundDescription,
+    userRole: p.userRole,
+    userRelationship: p.userRelationship,
+    systemPrompt: p.systemPrompt,
+    approvalStatus: p.approvalStatus,
+  };
+}
+
+const APPROVAL_LABEL: Record<Persona["approvalStatus"], string> = {
+  approved: "승인됨",
+  draft: "검토 중",
+  rejected: "반려됨",
+};
+
+const APPROVAL_STYLE: Record<Persona["approvalStatus"], string> = {
+  approved: "bg-[#e8f9ef] text-[#3d8a5e] border-[#b6e6ca]",
+  draft: "bg-[#fff9ec] text-[#9b7a1e] border-[#f0dfa0]",
+  rejected: "bg-[#fff0f0] text-[#b04040] border-[#f0c0c0]",
+};
 
 export default function Page() {
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [characterForm, setCharacterForm] = useState<CharacterForm>(
-    CURRENT_CHARACTER
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
+    null
   );
 
-  const openEditModal = () => {
-    setCharacterForm(CURRENT_CHARACTER);
-    setIsEditModalOpen(true);
+  // character modal
+  const [isCharacterModalOpen, setIsCharacterModalOpen] = useState(false);
+  const [characterModalMode, setCharacterModalMode] = useState<"add" | "edit">(
+    "add"
+  );
+  const [characterNameInput, setCharacterNameInput] = useState("");
+  const [characterForm, setCharacterForm] =
+    useState<CharacterForm>(EMPTY_CHARACTER_FORM);
+
+  // persona modal
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [personaModalMode, setPersonaModalMode] = useState<"add" | "edit">(
+    "add"
+  );
+  const [personaLlmInput, setPersonaLlmInput] = useState("");
+  const [personaForm, setPersonaForm] = useState<PersonaForm>(EMPTY_PERSONA_FORM);
+
+  const selectedBook = mockBooks.find((b) => b.id === selectedBookId);
+  const filteredCharacters = selectedBook
+    ? mockCharacters.filter((c) => c.bookTitle === selectedBook.title)
+    : [];
+  const selectedCharacter = mockCharacters.find(
+    (c) => c.id === selectedCharacterId
+  );
+  const selectedPersona = mockPersonas.find(
+    (p) => p.characterId === selectedCharacterId
+  );
+
+  const openAddCharacterModal = () => {
+    setCharacterModalMode("add");
+    setCharacterNameInput("");
+    setCharacterForm(EMPTY_CHARACTER_FORM);
+    setIsCharacterModalOpen(true);
   };
 
-  const closeEditModal = () => setIsEditModalOpen(false);
+  const openEditCharacterModal = () => {
+    if (!selectedCharacter) return;
+    setCharacterModalMode("edit");
+    setCharacterNameInput(selectedCharacter.name);
+    setCharacterForm({
+      name: selectedCharacter.name,
+      role: selectedCharacter.role,
+      gender: selectedCharacter.gender,
+      emoji: selectedCharacter.avatarEmoji,
+      description: selectedCharacter.shortBio,
+      profileImageUrl: selectedCharacter.profileImageUrl ?? "",
+    });
+    setIsCharacterModalOpen(true);
+  };
+
+  const handleCharacterAutocomplete = () => {
+    const mock = MOCK_CHARACTER_AUTOCOMPLETE[characterNameInput];
+    if (mock) setCharacterForm(mock);
+  };
 
   const updateCharacterField = (field: keyof CharacterForm, value: string) => {
     setCharacterForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    console.log("수정된 캐릭터 데이터:", characterForm);
-    setIsEditModalOpen(false);
+  const openAddPersonaModal = () => {
+    setPersonaModalMode("add");
+    setPersonaLlmInput(selectedCharacter?.name ?? "");
+    setPersonaForm(EMPTY_PERSONA_FORM);
+    setIsPersonaModalOpen(true);
   };
+
+  const openEditPersonaModal = () => {
+    if (!selectedCharacterId) return;
+    setPersonaModalMode("edit");
+    setPersonaLlmInput(selectedCharacter?.name ?? "");
+    setPersonaForm(getPersonaFormFromMock(selectedCharacterId));
+    setIsPersonaModalOpen(true);
+  };
+
+  const handlePersonaAutocomplete = () => {
+    if (!selectedCharacterId) return;
+    setPersonaForm(getPersonaFormFromMock(selectedCharacterId));
+  };
+
+  const updatePersonaField = (
+    field: keyof PersonaForm,
+    value: string
+  ) => {
+    setPersonaForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const inputCls =
+    "w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]";
+  const textareaCls =
+    "w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]";
+  const fieldWrapCls = "bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5";
+  const labelCls = "block text-[10px] font-bold text-[#9b74ad] mb-1.5";
 
   return (
     <div>
+      {/* Header */}
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
           <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">
-            캐릭터 페르소나 목록
+            캐릭터 관리
           </h3>
           <p className="mt-1.5 text-[13px] text-[#94859d]">
-            카드 클릭 시 상세에서 이미지, 줄거리, 성격, 설명, 말투, 말버릇,
-            금지 규칙을 확인하고 수정합니다.
+            동화책을 선택한 후 캐릭터를 조회하고 페르소나를 관리합니다.
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        {selectedBookId && (
           <button
             type="button"
-            className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0] whitespace-nowrap"
-          >
-            필터
-          </button>
-          <button
-            type="button"
+            onClick={openAddCharacterModal}
             className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
           >
-            + 페르소나 추가
+            + 캐릭터 추가
           </button>
-        </div>
+        )}
       </div>
 
+      {/* Book Selection */}
       <section className="bg-white border border-[#eadcf0] rounded-3xl p-4 shadow-[0_10px_26px_rgba(180,140,205,0.13)] mb-3.5">
-        <h4 className="m-0 mb-3 text-[15px] text-[#72508c]">
-          캐릭터 카드 목록
-        </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-          {CHARACTERS.map((character) => (
-            <CharacterCard key={character.name} {...character} />
+        <h4 className="m-0 mb-3 text-[15px] text-[#72508c]">동화책 선택</h4>
+        <select
+          value={selectedBookId ?? ""}
+          onChange={(e) => {
+            setSelectedBookId(e.target.value || null);
+            setSelectedCharacterId(null);
+          }}
+          className="bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-3 py-2 outline-none focus:border-[#c7a8ff] w-full sm:w-80"
+        >
+          <option value="">동화책을 선택하세요</option>
+          {mockBooks.map((book) => (
+            <option key={book.id} value={book.id}>
+              {book.coverEmoji} {book.title}
+            </option>
           ))}
-        </div>
+        </select>
       </section>
 
-      <section className="relative min-h-[560px] bg-gradient-to-br from-[#fff7fb] to-[#f4efff] border border-[#eadcf0] rounded-3xl overflow-hidden p-4">
-        <div className="w-full max-w-3xl mx-auto bg-white border border-[#eadcf0] rounded-[28px] shadow-[0_24px_60px_rgba(130,90,160,0.22)] p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3.5 border-b border-[#eadcf0] pb-3.5 mb-3.5">
-            <div className="h-[132px] rounded-3xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-5xl">
-              🧙
+      {/* Character List */}
+      {selectedBookId && (
+        <section className="bg-white border border-[#eadcf0] rounded-3xl p-4 shadow-[0_10px_26px_rgba(180,140,205,0.13)] mb-3.5">
+          <h4 className="m-0 mb-3 text-[15px] text-[#72508c]">
+            {selectedBook?.coverEmoji} {selectedBook?.title} · 캐릭터 목록
+          </h4>
+          {filteredCharacters.length === 0 ? (
+            <p className="text-[12px] text-[#94859d] text-center py-6">
+              이 동화책에 등록된 캐릭터가 없습니다.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {filteredCharacters.map((character) => (
+                <CharacterCard
+                  key={character.id}
+                  emoji={character.avatarEmoji}
+                  name={character.name}
+                  description={`${character.role} · ${character.gender}`}
+                  onClick={() =>
+                    setSelectedCharacterId(
+                      selectedCharacterId === character.id ? null : character.id
+                    )
+                  }
+                  isSelected={selectedCharacterId === character.id}
+                />
+              ))}
             </div>
-            <div>
-              <h4 className="m-0 text-[22px] tracking-tight text-[#72508c]">
-                마녀 페르소나 상세
-              </h4>
-              <p className="mt-1.5 mb-2.5 text-[12px] text-[#94859d] leading-relaxed">
-                백설공주와 일곱 난쟁이 속 마녀. 거울의 말에 상처받고 질투심을
-                느끼지만, 답변에서는 폭력적 행동을 미화하지 않도록 설정합니다.
-              </p>
-              <div className="flex gap-1.5 flex-wrap">
-                <span className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2.5 py-1.5 text-[10px] font-extrabold">
-                  질투심 많은
-                </span>
-                <span className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2.5 py-1.5 text-[10px] font-extrabold">
-                  자존심 강한
-                </span>
-                <span className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2.5 py-1.5 text-[10px] font-extrabold">
-                  상처받은
-                </span>
-                <span className="bg-[#fff1f1] text-[#c06a78] border border-[#ffd4dc] rounded-full px-2.5 py-1.5 text-[10px] font-extrabold">
-                  폭력 미화 금지
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
+        </section>
+      )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-              <b className="block text-[#72508c] text-[12px] mb-1.5">
-                동화 줄거리 요약
-              </b>
-              <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                백설공주가 왕비의 질투를 피해 숲속으로 도망가고, 일곱 난쟁이와
-                함께 지내다가 독사과 사건을 겪는 이야기.
-              </p>
-            </div>
-            <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-              <b className="block text-[#72508c] text-[12px] mb-1.5">
-                등장인물 관계
-              </b>
-              <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                백설공주: 질투 대상 · 거울: 감정 자극 요소 · 난쟁이:
-                백설공주의 보호자
-              </p>
-            </div>
-            <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-              <b className="block text-[#72508c] text-[12px] mb-1.5">
-                성격 및 설명
-              </b>
-              <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                자존심이 강하고 인정받고 싶어함. 아름다움에 집착하지만 내면에는
-                불안감이 있음.
-              </p>
-            </div>
-            <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-              <b className="block text-[#72508c] text-[12px] mb-1.5">
-                말투/말버릇
-              </b>
-              <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                반말 · 차분하지만 날카로움 · &ldquo;거울아, 거울아. 이 마음도
-                비춰줄 수 있겠니?&rdquo;
-              </p>
-            </div>
-            <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-              <b className="block text-[#72508c] text-[12px] mb-1.5">
-                시스템 프롬프트
-              </b>
-              <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                마녀 캐릭터로 답변하되 아이 친화적 표현을 사용하고, 해로운
-                행동은 반성적으로 표현한다.
-              </p>
-            </div>
-            <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-              <b className="block text-[#72508c] text-[12px] mb-1.5">
-                수정 가능 항목
-              </b>
-              <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                이미지, 캐릭터 설명, 성격 키워드, 말투, 말버릇, 금지 규칙,
-                테스트 질문 샘플
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-2.5 bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-            <b className="text-[#72508c] text-[12px]">테스트 채팅</b>
-            <div className="mt-2 grid gap-2">
-              <div className="rounded-2xl px-3 py-2.5 text-[11px] leading-relaxed text-white bg-gradient-to-br from-[#c7a6ff] to-[#f2a7d7] ml-9">
-                너는 왜 백설공주를 해치려 했어?
+      {/* Character Detail Panel */}
+      {selectedCharacter && (
+        <section className="bg-gradient-to-br from-[#fff7fb] to-[#f4efff] border border-[#eadcf0] rounded-3xl p-4">
+          <div className="w-full max-w-3xl mx-auto bg-white border border-[#eadcf0] rounded-[28px] shadow-[0_24px_60px_rgba(130,90,160,0.22)] p-4">
+            {/* Character Info */}
+            <div className="flex items-start justify-between gap-3 border-b border-[#eadcf0] pb-3.5 mb-3.5">
+              <div className="flex gap-3 items-center">
+                <div className="h-[80px] w-[80px] rounded-3xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-4xl shrink-0">
+                  {selectedCharacter.avatarEmoji}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                    <h4 className="m-0 text-[18px] tracking-tight text-[#72508c]">
+                      {selectedCharacter.name}
+                    </h4>
+                    <span className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2 py-0.5 text-[10px] font-bold">
+                      {selectedCharacter.role}
+                    </span>
+                    <span className="bg-[#f0f0ff] text-[#6060c0] border border-[#dcdcf0] rounded-full px-2 py-0.5 text-[10px] font-bold">
+                      {selectedCharacter.gender}
+                    </span>
+                  </div>
+                  <p className="m-0 text-[12px] text-[#94859d] leading-relaxed">
+                    {selectedCharacter.shortBio}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-2xl px-3 py-2.5 text-[11px] leading-relaxed bg-gradient-to-br from-[#fff0f7] to-[#f7e9ff] border border-[#f0d9ff] text-[#6d5f72] mr-5">
-                거울의 말이 내 마음을 깊이 찔렀어. 하지만 누군가를 아프게 하는
-                건 옳지 않았다는 걸 이제는 알아.
-              </div>
-            </div>
-            <div className="flex gap-2 flex-wrap mt-2.5">
               <button
                 type="button"
-                onClick={openEditModal}
-                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
+                onClick={openEditCharacterModal}
+                className="rounded-full px-4 py-2 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0] whitespace-nowrap shrink-0"
               >
                 수정
               </button>
-              <button
-                type="button"
-                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
-              >
-                다시 테스트
-              </button>
-              <button
-                type="button"
-                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2]"
-              >
-                배포 승인
-              </button>
+            </div>
+
+            {/* Persona Info */}
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="m-0 text-[15px] text-[#72508c]">
+                  페르소나 정보
+                </h4>
+                <button
+                  type="button"
+                  onClick={
+                    selectedPersona ? openEditPersonaModal : openAddPersonaModal
+                  }
+                  className="rounded-full px-4 py-2 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+                >
+                  {selectedPersona ? "페르소나 수정" : "페르소나 추가"}
+                </button>
+              </div>
+
+              {selectedPersona ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                    <b className="block text-[#72508c] text-[12px] mb-1">
+                      성격
+                    </b>
+                    <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
+                      {selectedPersona.personality}
+                    </p>
+                  </div>
+                  <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                    <b className="block text-[#72508c] text-[12px] mb-1">
+                      말투 · 말버릇
+                    </b>
+                    <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
+                      {selectedPersona.speechStyle}
+                      <br />
+                      <span className="text-[#9b74ad]">
+                        &ldquo;{selectedPersona.catchphrase}&rdquo;
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                    <b className="block text-[#72508c] text-[12px] mb-1">
+                      인사말
+                    </b>
+                    <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
+                      시작: {selectedPersona.greetingStart}
+                      <br />
+                      종료: {selectedPersona.greetingEnd}
+                    </p>
+                  </div>
+                  <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                    <b className="block text-[#72508c] text-[12px] mb-1">
+                      배경
+                    </b>
+                    <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
+                      {selectedPersona.historicalBackground} ·{" "}
+                      {selectedPersona.backgroundDescription}
+                    </p>
+                  </div>
+                  <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                    <b className="block text-[#72508c] text-[12px] mb-1">
+                      태그
+                    </b>
+                    <div className="flex gap-1 flex-wrap mt-1">
+                      {selectedPersona.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2 py-0.5 text-[10px] font-bold"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
+                    <b className="block text-[#72508c] text-[12px] mb-1">
+                      승인 상태
+                    </b>
+                    <span
+                      className={`inline-block border rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                        APPROVAL_STYLE[selectedPersona.approvalStatus]
+                      }`}
+                    >
+                      {APPROVAL_LABEL[selectedPersona.approvalStatus]}
+                    </span>
+                  </div>
+                  <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
+                    <b className="block text-[#72508c] text-[12px] mb-1">
+                      시스템 프롬프트
+                    </b>
+                    <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
+                      {selectedPersona.systemPrompt}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-[13px] text-[#94859d]">
+                  아직 등록된 페르소나가 없습니다.
+                  <br />
+                  <span className="text-[11px]">
+                    [페르소나 추가] 버튼을 눌러 등록하세요.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {isEditModalOpen && (
+      {/* Character Add/Edit Modal */}
+      {isCharacterModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white border border-[#eadcf0] rounded-3xl shadow-[0_24px_60px_rgba(130,90,160,0.22)] p-4">
             <h3 className="text-lg tracking-tight text-[#7d5ba6] m-0 mb-1">
-              {CURRENT_CHARACTER.name} 수정
+              {characterModalMode === "add" ? "캐릭터 추가" : `${characterForm.name} 수정`}
             </h3>
             <p className="mt-1 mb-3 text-[12px] text-[#94859d]">
-              캐릭터 정보를 수정하고 저장하세요.
+              캐릭터명을 입력하고 AI 자동완성으로 정보를 채워보세요.
             </p>
 
+            <div className={fieldWrapCls + " mb-3"}>
+              <label className={labelCls}>캐릭터명으로 자동완성</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={characterNameInput}
+                  onChange={(e) => setCharacterNameInput(e.target.value)}
+                  placeholder="캐릭터 이름을 입력하세요"
+                  className={inputCls + " flex-1"}
+                />
+                <button
+                  type="button"
+                  onClick={handleCharacterAutocomplete}
+                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+                >
+                  자동완성
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-                  이름
-                </label>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>이름</label>
                 <input
                   type="text"
                   value={characterForm.name}
                   onChange={(e) => updateCharacterField("name", e.target.value)}
-                  placeholder="캐릭터 이름을 입력하세요"
-                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                  placeholder="캐릭터 이름"
+                  className={inputCls}
                 />
               </div>
-
-              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-                  역할
-                </label>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>역할</label>
                 <input
                   type="text"
                   value={characterForm.role}
                   onChange={(e) => updateCharacterField("role", e.target.value)}
-                  placeholder="예: 주인공, 조력자"
-                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                  placeholder="예: 주인공, 조력자, 악역"
+                  className={inputCls}
                 />
               </div>
-
-              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-                  성별
-                </label>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>성별</label>
                 <input
                   type="text"
                   value={characterForm.gender}
-                  onChange={(e) => updateCharacterField("gender", e.target.value)}
-                  placeholder="예: 여성, 남성"
-                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                  onChange={(e) =>
+                    updateCharacterField("gender", e.target.value)
+                  }
+                  placeholder="예: 여성, 남성, 미상"
+                  className={inputCls}
                 />
               </div>
-
-              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-                  이모지
-                </label>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>이모지</label>
                 <input
                   type="text"
                   value={characterForm.emoji}
                   onChange={(e) => updateCharacterField("emoji", e.target.value)}
                   placeholder="예: 🧙"
-                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                  className={inputCls}
                 />
               </div>
-
-              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
-                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-                  프로필 이미지 URL
-                </label>
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>프로필 이미지 URL</label>
                 <input
                   type="text"
                   value={characterForm.profileImageUrl}
                   onChange={(e) =>
                     updateCharacterField("profileImageUrl", e.target.value)
                   }
-                  placeholder="프로필 이미지 URL을 입력하세요"
-                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                  placeholder="프로필 이미지 URL"
+                  className={inputCls}
                 />
               </div>
-
-              <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
-                <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-                  소개
-                </label>
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>소개</label>
                 <textarea
                   value={characterForm.description}
                   onChange={(e) =>
@@ -320,7 +527,7 @@ export default function Page() {
                   }
                   placeholder="캐릭터 소개를 입력하세요"
                   rows={4}
-                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"
+                  className={textareaCls}
                 />
               </div>
             </div>
@@ -328,15 +535,276 @@ export default function Page() {
             <div className="flex justify-end gap-2 mt-4">
               <button
                 type="button"
-                onClick={closeEditModal}
-                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0] whitespace-nowrap"
+                onClick={() => setIsCharacterModalOpen(false)}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
               >
                 취소
               </button>
               <button
                 type="button"
-                onClick={handleSave}
-                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+                onClick={() => {
+                  console.log("캐릭터 저장:", characterForm);
+                  setIsCharacterModalOpen(false);
+                }}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2]"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Persona Add/Edit Modal */}
+      {isPersonaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white border border-[#eadcf0] rounded-3xl shadow-[0_24px_60px_rgba(130,90,160,0.22)] p-4">
+            <h3 className="text-lg tracking-tight text-[#7d5ba6] m-0 mb-1">
+              {personaModalMode === "add"
+                ? `${selectedCharacter?.name} 페르소나 추가`
+                : `${selectedCharacter?.name} 페르소나 수정`}
+            </h3>
+            <p className="mt-1 mb-3 text-[12px] text-[#94859d]">
+              캐릭터명 기반으로 AI 자동완성을 사용하거나 직접 입력하세요.
+            </p>
+
+            {/* LLM 자동완성 */}
+            <div className={fieldWrapCls + " mb-3"}>
+              <label className={labelCls}>캐릭터명으로 자동완성</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={personaLlmInput}
+                  onChange={(e) => setPersonaLlmInput(e.target.value)}
+                  placeholder="캐릭터 이름"
+                  className={inputCls + " flex-1"}
+                />
+                <button
+                  type="button"
+                  onClick={handlePersonaAutocomplete}
+                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+                >
+                  자동완성
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
+              기본 정보
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>성격</label>
+                <textarea
+                  value={personaForm.personality}
+                  onChange={(e) =>
+                    updatePersonaField("personality", e.target.value)
+                  }
+                  rows={2}
+                  placeholder="캐릭터의 성격을 입력하세요"
+                  className={textareaCls}
+                />
+              </div>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>말투</label>
+                <input
+                  type="text"
+                  value={personaForm.speechStyle}
+                  onChange={(e) =>
+                    updatePersonaField("speechStyle", e.target.value)
+                  }
+                  placeholder="예: 반말 · 차분함"
+                  className={inputCls}
+                />
+              </div>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>말버릇</label>
+                <input
+                  type="text"
+                  value={personaForm.catchphrase}
+                  onChange={(e) =>
+                    updatePersonaField("catchphrase", e.target.value)
+                  }
+                  placeholder="자주 쓰는 표현"
+                  className={inputCls}
+                />
+              </div>
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>소개</label>
+                <textarea
+                  value={personaForm.introduction}
+                  onChange={(e) =>
+                    updatePersonaField("introduction", e.target.value)
+                  }
+                  rows={2}
+                  placeholder="캐릭터 소개"
+                  className={textareaCls}
+                />
+              </div>
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>태그 (쉼표로 구분)</label>
+                <input
+                  type="text"
+                  value={personaForm.tags}
+                  onChange={(e) => updatePersonaField("tags", e.target.value)}
+                  placeholder="예: 질투심 많은, 자존심 강한"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
+              인사말
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>시작 인사말</label>
+                <textarea
+                  value={personaForm.greetingStart}
+                  onChange={(e) =>
+                    updatePersonaField("greetingStart", e.target.value)
+                  }
+                  rows={2}
+                  placeholder="대화 시작 시 인사말"
+                  className={textareaCls}
+                />
+              </div>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>종료 인사말</label>
+                <textarea
+                  value={personaForm.greetingEnd}
+                  onChange={(e) =>
+                    updatePersonaField("greetingEnd", e.target.value)
+                  }
+                  rows={2}
+                  placeholder="대화 종료 시 인사말"
+                  className={textareaCls}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
+              배경 정보
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>시작 상황</label>
+                <textarea
+                  value={personaForm.startingSituation}
+                  onChange={(e) =>
+                    updatePersonaField("startingSituation", e.target.value)
+                  }
+                  rows={2}
+                  placeholder="대화가 시작되는 상황 설명"
+                  className={textareaCls}
+                />
+              </div>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>시대 배경</label>
+                <input
+                  type="text"
+                  value={personaForm.historicalBackground}
+                  onChange={(e) =>
+                    updatePersonaField("historicalBackground", e.target.value)
+                  }
+                  placeholder="예: 동화 시대의 왕국"
+                  className={inputCls}
+                />
+              </div>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>배경 설명</label>
+                <input
+                  type="text"
+                  value={personaForm.backgroundDescription}
+                  onChange={(e) =>
+                    updatePersonaField("backgroundDescription", e.target.value)
+                  }
+                  placeholder="예: 거울의 방"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
+              유저 설정
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>유저 역할</label>
+                <input
+                  type="text"
+                  value={personaForm.userRole}
+                  onChange={(e) =>
+                    updatePersonaField("userRole", e.target.value)
+                  }
+                  placeholder="예: 왕국의 백성"
+                  className={inputCls}
+                />
+              </div>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>유저 관계</label>
+                <input
+                  type="text"
+                  value={personaForm.userRelationship}
+                  onChange={(e) =>
+                    updatePersonaField("userRelationship", e.target.value)
+                  }
+                  placeholder="예: 질문을 던지는 존재"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
+              시스템 설정
+            </p>
+            <div className="grid grid-cols-1 gap-3">
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>시스템 프롬프트</label>
+                <textarea
+                  value={personaForm.systemPrompt}
+                  onChange={(e) =>
+                    updatePersonaField("systemPrompt", e.target.value)
+                  }
+                  rows={4}
+                  placeholder="LLM에 전달할 시스템 프롬프트"
+                  className={textareaCls}
+                />
+              </div>
+              <div className={fieldWrapCls}>
+                <label className={labelCls}>승인 상태</label>
+                <select
+                  value={personaForm.approvalStatus}
+                  onChange={(e) =>
+                    updatePersonaField(
+                      "approvalStatus",
+                      e.target.value as PersonaForm["approvalStatus"]
+                    )
+                  }
+                  className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
+                >
+                  <option value="draft">검토 중</option>
+                  <option value="approved">승인됨</option>
+                  <option value="rejected">반려됨</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setIsPersonaModalOpen(false)}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  console.log("페르소나 저장:", personaForm);
+                  setIsPersonaModalOpen(false);
+                }}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2]"
               >
                 저장
               </button>
