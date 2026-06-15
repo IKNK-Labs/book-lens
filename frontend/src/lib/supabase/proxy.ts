@@ -15,10 +15,7 @@ function isUserProtectedRoute(pathname: string) {
   );
 }
 
-function redirectWithCookies(
-  response: NextResponse,
-  destination: URL,
-) {
+function redirectWithCookies(response: NextResponse, destination: URL) {
   const redirectResponse = NextResponse.redirect(destination);
 
   response.cookies.getAll().forEach((cookie) => {
@@ -26,6 +23,23 @@ function redirectWithCookies(
   });
 
   return redirectResponse;
+}
+
+async function isActiveAdmin(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+) {
+  const { data: adminUser, error: adminUserError } = await supabase
+    .from("admin_user")
+    .select("role, is_active")
+    .eq("auth_user_id", userId)
+    .maybeSingle();
+
+  if (adminUserError) {
+    console.error("Failed to check admin permission", adminUserError);
+  }
+
+  return adminUser?.role === "admin" && adminUser.is_active === true;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -66,11 +80,20 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const userId = claimsData?.claims.sub;
 
-  if (isUserProtectedRoute(pathname) && !userId) {
-    return redirectWithCookies(
-      supabaseResponse,
-      new URL("/login", request.url),
-    );
+  if (isUserProtectedRoute(pathname)) {
+    if (!userId) {
+      return redirectWithCookies(
+        supabaseResponse,
+        new URL("/login", request.url),
+      );
+    }
+
+    if (await isActiveAdmin(supabase, userId)) {
+      return redirectWithCookies(
+        supabaseResponse,
+        new URL("/admin", request.url),
+      );
+    }
   }
 
   if (!isAdminRoute(pathname) || pathname === ADMIN_LOGIN_PATH) {
@@ -84,20 +107,7 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  const { data: adminUser, error: adminUserError } = await supabase
-    .from("admin_user")
-    .select("role, is_active")
-    .eq("auth_user_id", userId)
-    .maybeSingle();
-
-  if (adminUserError) {
-    console.error("Failed to check admin permission", adminUserError);
-  }
-
-  const isAdmin =
-    adminUser?.role === "admin" && adminUser.is_active === true;
-
-  if (!isAdmin) {
+  if (!(await isActiveAdmin(supabase, userId))) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "관리자 권한이 필요합니다");
 
