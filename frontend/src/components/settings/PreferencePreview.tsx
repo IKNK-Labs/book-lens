@@ -7,7 +7,7 @@ export function PreferencePreview() {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">Preview</p>
           <h2 className="mt-2 text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">설정 적용 미리보기</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">실제 채팅방이 아니라, 설정값이 응답에 반영되는 느낌을 보여주는 mock 영역입니다.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">설정값에 따라 캐릭터 답변의 길이와 설명 방식이 어떻게 달라지는지 미리 볼 수 있어요.</p>
         </div>
       </div>
       <div className="mt-5 grid gap-3">

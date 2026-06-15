@@ -6,6 +6,10 @@ export type Book = {
   characterCount: number;
   genres: string[];
   featuredCharacterId: string;
+  summary: string;
+  recommendedFor: string;
+  readingTime: string;
+  label: string;
 };
 
 export type Character = {
@@ -56,6 +60,10 @@ export const mockBooks: Book[] = [
     characterCount: 4,
     genres: ["판타지", "교훈"],
     featuredCharacterId: "witch",
+    summary: "백설공주가 숲으로 떠나 일곱 난쟁이를 만나고, 질투와 용서의 의미를 배우는 이야기입니다.",
+    recommendedFor: "감정을 안전하게 표현하는 법을 배우고 싶은 어린이",
+    readingTime: "약 12분",
+    label: "추천",
   },
   {
     id: "cinderella",
@@ -65,6 +73,10 @@ export const mockBooks: Book[] = [
     characterCount: 6,
     genres: ["판타지", "감성"],
     featuredCharacterId: "fairy-godmother",
+    summary: "신데렐라가 어려운 상황 속에서도 희망을 잃지 않고 새로운 기회를 만나는 이야기입니다.",
+    recommendedFor: "용기와 친절의 힘을 느끼고 싶은 사용자",
+    readingTime: "약 10분",
+    label: "인기",
   },
   {
     id: "little-prince",
@@ -74,6 +86,10 @@ export const mockBooks: Book[] = [
     characterCount: 5,
     genres: ["감성", "교훈"],
     featuredCharacterId: "fox",
+    summary: "어린왕자가 여러 별과 친구를 만나며 관계, 책임, 소중함을 깨닫는 이야기입니다.",
+    recommendedFor: "차분한 대화와 생각할 거리를 좋아하는 사용자",
+    readingTime: "약 15분",
+    label: "감성",
   },
   {
     id: "red-riding-hood",
@@ -83,6 +99,10 @@ export const mockBooks: Book[] = [
     characterCount: 3,
     genres: ["모험", "교훈"],
     featuredCharacterId: "wolf",
+    summary: "빨간 모자가 숲길에서 늑대를 만나며 낯선 존재를 조심하는 법을 배우는 이야기입니다.",
+    recommendedFor: "모험 속 교훈을 쉽고 안전하게 알고 싶은 어린이",
+    readingTime: "약 8분",
+    label: "최신",
   },
 ];
 
@@ -287,4 +307,120 @@ export const mockPreference = {
   explanationStyle: "쉽게 설명",
   interests: ["모험", "동물"],
   instruction: "어려운 단어는 쉽게 설명해줘. 무서운 장면은 부드럽게 말해줘.",
+};
+
+
+export type ConversationSession = {
+  id: string;
+  title: string;
+  bookId: string;
+  bookTitle: string;
+  characterId: string;
+  characterName: string;
+  lastMessage: string;
+  updatedAt: string;
+  saved: boolean;
+};
+
+export type StoryScene = {
+  id: string;
+  title: string;
+  narration: string;
+  dialogue: string;
+  characterId: string;
+  characterName: string;
+};
+
+export const mockViewerAccount = {
+  name: "제석",
+  email: "jeseok@example.com",
+  provider: "Google",
+  nickname: "제석",
+};
+
+export const mockConversationSessions: ConversationSession[] = [
+  {
+    id: "session-snow-white-witch",
+    title: "마녀가 들려준 질투의 마음",
+    bookId: "snow-white",
+    bookTitle: "백설공주와 일곱 난쟁이",
+    characterId: "witch",
+    characterName: "마녀",
+    lastMessage: "질투가 마음을 가득 채울 때는 잠깐 멈춰서 내가 진짜 원하는 걸 바라봐야 해.",
+    updatedAt: "오늘 오후 2:10",
+    saved: true,
+  },
+  {
+    id: "session-little-prince-fox",
+    title: "여우와 천천히 친구 되기",
+    bookId: "little-prince",
+    bookTitle: "어린왕자",
+    characterId: "fox",
+    characterName: "여우",
+    lastMessage: "기다리는 시간이 생기면 그 친구가 더 특별해져.",
+    updatedAt: "어제 오후 7:42",
+    saved: true,
+  },
+  {
+    id: "session-cinderella-fairy",
+    title: "요정 대모의 용기 수업",
+    bookId: "cinderella",
+    bookTitle: "신데렐라",
+    characterId: "fairy-godmother",
+    characterName: "요정 대모",
+    lastMessage: "마법보다 먼저 필요한 건 스스로를 믿는 작은 마음이란다.",
+    updatedAt: "3일 전",
+    saved: false,
+  },
+];
+
+export const mockStoryScenesByBookId: Record<string, StoryScene[]> = {
+  "snow-white": [
+    {
+      id: "snow-white-1",
+      title: "거울 앞의 질문",
+      narration: "왕비는 조용한 방에서 마법 거울을 바라보며 마음속 불안을 감추려 했습니다.",
+      dialogue: "거울아, 거울아. 오늘 내 마음에는 어떤 그림자가 비치고 있니?",
+      characterId: "witch",
+      characterName: "마녀",
+    },
+    {
+      id: "snow-white-2",
+      title: "숲속의 작은 집",
+      narration: "백설공주는 깊은 숲을 지나 작은 불빛이 새어 나오는 집을 발견했습니다.",
+      dialogue: "무서웠지만, 누군가의 따뜻한 마음을 믿어 보고 싶어.",
+      characterId: "witch",
+      characterName: "마녀",
+    },
+  ],
+  cinderella: [
+    {
+      id: "cinderella-1",
+      title: "정원의 별빛",
+      narration: "신데렐라가 눈물을 닦자 정원 한가운데 부드러운 빛이 내려왔습니다.",
+      dialogue: "얘야, 네가 잃어버리지 않은 용기를 함께 찾아보자.",
+      characterId: "fairy-godmother",
+      characterName: "요정 대모",
+    },
+  ],
+  "little-prince": [
+    {
+      id: "little-prince-1",
+      title: "밀밭의 약속",
+      narration: "여우는 황금빛 밀밭을 바라보며 어린왕자에게 천천히 다가오는 법을 알려주었습니다.",
+      dialogue: "서두르지 않아도 괜찮아. 소중한 관계는 시간을 먹고 자라거든.",
+      characterId: "fox",
+      characterName: "여우",
+    },
+  ],
+  "red-riding-hood": [
+    {
+      id: "red-riding-hood-1",
+      title: "숲길의 발자국",
+      narration: "빨간 모자는 바구니를 꼭 안고 숲길에서 들려오는 낯선 소리에 귀를 기울였습니다.",
+      dialogue: "길을 잃지 않으려면 약속한 길을 기억해야 해.",
+      characterId: "wolf",
+      characterName: "늑대",
+    },
+  ],
 };
