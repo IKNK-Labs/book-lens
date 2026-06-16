@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Swal from "sweetalert2";
 import { adminBooksApi, ApiError } from "@/lib/api";
 
-const REQUIRED_FIELDS: { key: string; label: string }[] = [
+type BookForm = {
+  isbn: string;
+  title: string;
+  author: string;
+  publisher: string;
+  description: string;
+};
+
+const REQUIRED_FIELDS: { key: keyof BookForm; label: string }[] = [
   { key: "isbn", label: "ISBN" },
   { key: "title", label: "제목" },
   { key: "author", label: "저자" },
@@ -14,20 +22,76 @@ const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: "description", label: "줄거리" },
 ];
 
+const inputCls =
+  "w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]";
+const fieldWrapCls = "bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5";
+const labelCls = "block text-[10px] font-bold text-[#9b74ad] mb-1.5";
+
 export default function Page() {
   const router = useRouter();
-
-  const [isbn, setIsbn] = useState("");
-  const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
-  const [publisher, setPublisher] = useState("");
-  const [description, setDescription] = useState("");
+  const [form, setForm] = useState<BookForm>({
+    isbn: "",
+    title: "",
+    author: "",
+    publisher: "",
+    description: "",
+  });
+  const [autocompleteTitle, setAutocompleteTitle] = useState("");
+  const [isAutocompleting, setIsAutocompleting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const autocompleteInputRef = useRef<HTMLInputElement>(null);
 
-  const fieldValues: Record<string, string> = { isbn, title, author, publisher, description };
+  const updateField = (field: keyof BookForm, value: string) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleAutocomplete = async () => {
+    const titleToSearch = autocompleteTitle.trim() || form.title.trim();
+    if (!titleToSearch) {
+      Swal.fire({
+        icon: "warning",
+        title: "제목 미입력",
+        text: "자동완성할 동화책 제목을 입력해주세요.",
+        confirmButtonColor: "#c7a8ff",
+      });
+      return;
+    }
+
+    setIsAutocompleting(true);
+    try {
+      const res = await fetch("/api/admin/books/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: titleToSearch }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "자동완성에 실패했습니다.");
+      }
+
+      const data = await res.json();
+      setAutocompleteTitle("");
+      setForm((prev) => ({
+        ...prev,
+        title: titleToSearch,
+        author: data.author || prev.author,
+        publisher: data.publisher || prev.publisher,
+        description: data.description || prev.description,
+      }));
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "자동완성 실패",
+        text: err instanceof Error ? err.message : "서버에 연결할 수 없습니다.",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } finally {
+      setIsAutocompleting(false);
+    }
+  };
 
   const validate = () => {
-    const missing = REQUIRED_FIELDS.filter((field) => !fieldValues[field.key].trim());
+    const missing = REQUIRED_FIELDS.filter((field) => !form[field.key].trim());
     if (missing.length > 0) {
       Swal.fire({
         icon: "warning",
@@ -47,18 +111,18 @@ export default function Page() {
     setIsSubmitting(true);
     try {
       await adminBooksApi.create({
-        isbn: isbn.trim(),
-        title: title.trim(),
-        author: author.trim(),
-        publisher: publisher.trim(),
-        description: description.trim(),
-        content: description.trim(),
+        isbn: form.isbn.trim(),
+        title: form.title.trim(),
+        author: form.author.trim(),
+        publisher: form.publisher.trim(),
+        description: form.description.trim(),
+        content: form.description.trim(),
       });
 
       await Swal.fire({
         icon: "success",
         title: "등록되었습니다.",
-        text: `"${title.trim()}" 도서가 등록되었습니다.`,
+        text: `"${form.title.trim()}" 도서가 등록되었습니다.`,
         confirmButtonText: "확인",
         confirmButtonColor: "#c7a8ff",
       });
@@ -95,14 +159,14 @@ export default function Page() {
     }
   };
 
-  const inputClass = "w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]";
-
   return (
     <div>
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
           <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">동화책 등록</h3>
-          <p className="mt-1.5 text-[13px] text-[#94859d]">동화책 정보를 입력하고 저장합니다.</p>
+          <p className="mt-1.5 text-[13px] text-[#94859d]">
+            제목을 입력하고 AI 자동완성으로 정보를 채우거나 직접 입력하세요.
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Link
@@ -126,6 +190,7 @@ export default function Page() {
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
           <button
             type="button"
+            onClick={() => autocompleteInputRef.current?.focus()}
             className="flex-1 rounded-2xl border border-dashed border-[#d9c7ff] bg-[#fff0f7] px-4 py-3 text-left text-[12px] text-[#6f6174]"
           >
             <b className="block text-[#7d5ba6] mb-1">✨ LLM 자동완성</b>
@@ -140,45 +205,94 @@ export default function Page() {
           </button>
         </div>
 
+        <div className={fieldWrapCls + " mb-4"}>
+          <label className={labelCls}>✨ AI 자동완성 — 제목으로 저자·출판사·줄거리 채우기</label>
+          <div className="flex gap-2">
+            <input
+              ref={autocompleteInputRef}
+              type="text"
+              value={autocompleteTitle}
+              onChange={(event) => setAutocompleteTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void handleAutocomplete();
+              }}
+              placeholder="동화책 제목을 입력하세요 (예: 백설공주, 어린왕자)"
+              className={inputCls + " flex-1"}
+            />
+            <button
+              type="button"
+              onClick={handleAutocomplete}
+              disabled={isAutocompleting}
+              className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap disabled:opacity-60"
+            >
+              {isAutocompleting ? "생성 중..." : "AI 자동완성"}
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-            <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+          <div className={fieldWrapCls}>
+            <label className={labelCls}>
               ISBN <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input type="text" value={isbn} onChange={(event) => setIsbn(event.target.value)} placeholder="예: 9788925557373" className={inputClass} />
+            <input
+              type="text"
+              value={form.isbn}
+              onChange={(event) => updateField("isbn", event.target.value)}
+              placeholder="예: 9788925557373"
+              className={inputCls}
+            />
           </div>
 
-          <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-            <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+          <div className={fieldWrapCls}>
+            <label className={labelCls}>
               제목 <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="동화책 제목을 입력하세요" className={inputClass} />
+            <input
+              type="text"
+              value={form.title}
+              onChange={(event) => updateField("title", event.target.value)}
+              placeholder="동화책 제목을 입력하세요"
+              className={inputCls}
+            />
           </div>
 
-          <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-            <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+          <div className={fieldWrapCls}>
+            <label className={labelCls}>
               저자 <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input type="text" value={author} onChange={(event) => setAuthor(event.target.value)} placeholder="저자명을 입력하세요" className={inputClass} />
+            <input
+              type="text"
+              value={form.author}
+              onChange={(event) => updateField("author", event.target.value)}
+              placeholder="저자명을 입력하세요"
+              className={inputCls}
+            />
           </div>
 
-          <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
-            <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+          <div className={fieldWrapCls}>
+            <label className={labelCls}>
               출판사 <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input type="text" value={publisher} onChange={(event) => setPublisher(event.target.value)} placeholder="출판사명을 입력하세요" className={inputClass} />
+            <input
+              type="text"
+              value={form.publisher}
+              onChange={(event) => updateField("publisher", event.target.value)}
+              placeholder="출판사명을 입력하세요"
+              className={inputCls}
+            />
           </div>
 
-          <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
-            <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
+          <div className={fieldWrapCls + " sm:col-span-2"}>
+            <label className={labelCls}>
               줄거리 <span className="text-[#f0a0b0]">*</span>
             </label>
             <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              value={form.description}
+              onChange={(event) => updateField("description", event.target.value)}
               placeholder="동화책의 줄거리를 입력하세요"
-              rows={5}
-              className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"
+              rows={12}
+              className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
             />
           </div>
         </div>

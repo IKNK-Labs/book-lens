@@ -3,13 +3,17 @@
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import CharacterCard from "@/components/admin/CharacterCard";
-import { mockPersonas, type Persona } from "@/data/mock";
+import { mockPersonas } from "@/data/mock";
 import {
   adminBooksApi,
   adminCharactersApi,
+  adminPersonasApi,
+  type ApprovalStatus,
   type BookResponse,
   type CharacterPayload,
   type CharacterResponse,
+  type PersonaPayload,
+  type PersonaResponse,
 } from "@/lib/api";
 
 type PersonaForm = {
@@ -26,7 +30,7 @@ type PersonaForm = {
   userRole: string;
   userRelationship: string;
   systemPrompt: string;
-  approvalStatus: "draft" | "approved" | "rejected";
+  approvalStatus: ApprovalStatus;
 };
 
 const EMPTY_CHARACTER: CharacterPayload = {
@@ -96,13 +100,60 @@ function getPersonaFormFromMock(characterId: number): PersonaForm {
   };
 }
 
-const APPROVAL_LABEL: Record<Persona["approvalStatus"], string> = {
+function getPersonaFormFromResponse(persona: PersonaResponse): PersonaForm {
+  return {
+    personality: persona.personality ?? "",
+    speechStyle: persona.speech_style ?? "",
+    catchphrase: persona.catchphrase ?? "",
+    greetingStart: persona.greeting_open ?? "",
+    greetingEnd: persona.greeting_close ?? "",
+    introduction: persona.bio ?? "",
+    tags: (persona.tags ?? []).join(", "),
+    startingSituation: persona.opening_scene ?? "",
+    historicalBackground: persona.era ?? "",
+    backgroundDescription: persona.background ?? "",
+    userRole: persona.user_role ?? "",
+    userRelationship: persona.user_relationship ?? "",
+    systemPrompt: persona.system_prompt ?? "",
+    approvalStatus: persona.approved_status ?? "draft",
+  };
+}
+
+function getPersonaPayloadFromForm(
+  characterId: number,
+  bookId: number,
+  form: PersonaForm,
+): PersonaPayload {
+  return {
+    character_id: characterId,
+    book_id: bookId,
+    greeting_open: form.greetingStart.trim(),
+    greeting_close: form.greetingEnd.trim(),
+    personality: form.personality.trim(),
+    speech_style: form.speechStyle.trim(),
+    catchphrase: form.catchphrase.trim(),
+    bio: form.introduction.trim(),
+    tags: form.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+    opening_scene: form.startingSituation.trim(),
+    era: form.historicalBackground.trim(),
+    background: form.backgroundDescription.trim(),
+    user_role: form.userRole.trim(),
+    user_relationship: form.userRelationship.trim(),
+    system_prompt: form.systemPrompt.trim(),
+    approved_status: form.approvalStatus,
+  };
+}
+
+const APPROVAL_LABEL: Record<ApprovalStatus, string> = {
   approved: "승인됨",
   draft: "검토 중",
   rejected: "반려됨",
 };
 
-const APPROVAL_STYLE: Record<Persona["approvalStatus"], string> = {
+const APPROVAL_STYLE: Record<ApprovalStatus, string> = {
   approved: "bg-[#e8f9ef] text-[#3d8a5e] border-[#b6e6ca]",
   draft: "bg-[#fff9ec] text-[#9b7a1e] border-[#f0dfa0]",
   rejected: "bg-[#fff0f0] text-[#b04040] border-[#f0c0c0]",
@@ -113,6 +164,7 @@ export default function Page() {
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [characters, setCharacters] = useState<CharacterResponse[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  const [personasByCharacterId, setPersonasByCharacterId] = useState<Record<number, PersonaResponse>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   // character modal
@@ -135,17 +187,36 @@ export default function Page() {
 
   useEffect(() => {
     if (selectedBookId == null) {
-      setCharacters([]);
       return;
     }
     adminCharactersApi.list(selectedBookId).then(setCharacters).catch(console.error);
   }, [selectedBookId]);
 
+  useEffect(() => {
+    if (selectedCharacterId == null || personasByCharacterId[selectedCharacterId]) {
+      return;
+    }
+
+    adminPersonasApi
+      .list(selectedCharacterId)
+      .then((personas) => {
+        const persona = personas[0];
+        if (!persona) return;
+        setPersonasByCharacterId((prev) => ({
+          ...prev,
+          [selectedCharacterId]: persona,
+        }));
+      })
+      .catch(console.error);
+  }, [selectedCharacterId, personasByCharacterId]);
+
   const selectedBook = books.find((b) => b.id === selectedBookId);
   const selectedCharacter = characters.find((c) => c.id === selectedCharacterId);
-  const selectedPersona = mockPersonas.find(
-    (p) => p.characterId === String(selectedCharacterId)
-  );
+  const selectedPersona =
+    selectedCharacterId == null ? null : personasByCharacterId[selectedCharacterId] ?? null;
+  const selectedPersonaForm = selectedPersona
+    ? getPersonaFormFromResponse(selectedPersona)
+    : null;
 
   const openAddCharacterModal = () => {
     setCharacterModalMode("add");
@@ -241,10 +312,10 @@ export default function Page() {
   };
 
   const openEditPersonaModal = () => {
-    if (!selectedCharacterId) return;
+    if (!selectedPersonaForm) return;
     setPersonaModalMode("edit");
     setPersonaLlmInput(selectedCharacter?.name ?? "");
-    setPersonaForm(getPersonaFormFromMock(selectedCharacterId));
+    setPersonaForm(selectedPersonaForm);
     setIsPersonaModalOpen(true);
   };
 
@@ -255,6 +326,45 @@ export default function Page() {
 
   const updatePersonaField = (field: keyof PersonaForm, value: string) => {
     setPersonaForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePersonaSave = async () => {
+    if (!selectedCharacterId || !selectedBookId) return;
+
+    setIsSaving(true);
+    try {
+      const payload = getPersonaPayloadFromForm(
+        selectedCharacterId,
+        selectedBookId,
+        personaForm,
+      );
+      const saved = selectedPersona
+        ? await adminPersonasApi.update(selectedPersona.id, payload)
+        : await adminPersonasApi.create(payload);
+
+      setPersonasByCharacterId((prev) => ({
+        ...prev,
+        [selectedCharacterId]: saved,
+      }));
+      setIsPersonaModalOpen(false);
+      await Swal.fire({
+        icon: "success",
+        title: "페르소나가 저장되었습니다",
+        confirmButtonText: "확인",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } catch (e) {
+      console.error(e);
+      Swal.fire({
+        icon: "error",
+        title: "저장 실패",
+        text: "페르소나 저장에 실패했습니다. 잠시 후 다시 시도해주세요.",
+        confirmButtonText: "확인",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const inputCls =
@@ -293,6 +403,7 @@ export default function Page() {
           onChange={(e) => {
             setSelectedBookId(e.target.value ? Number(e.target.value) : null);
             setSelectedCharacterId(null);
+            setCharacters([]);
           }}
           className="bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-3 py-2 outline-none focus:border-[#c7a8ff] w-full sm:w-80"
         >
@@ -389,42 +500,42 @@ export default function Page() {
                 </button>
               </div>
 
-              {selectedPersona ? (
+              {selectedPersonaForm ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
                     <b className="block text-[#72508c] text-[12px] mb-1">성격</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                      {selectedPersona.personality}
+                      {selectedPersonaForm.personality}
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
                     <b className="block text-[#72508c] text-[12px] mb-1">말투 · 말버릇</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                      {selectedPersona.speechStyle}
+                      {selectedPersonaForm.speechStyle}
                       <br />
                       <span className="text-[#9b74ad]">
-                        &ldquo;{selectedPersona.catchphrase}&rdquo;
+                        &ldquo;{selectedPersonaForm.catchphrase}&rdquo;
                       </span>
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
                     <b className="block text-[#72508c] text-[12px] mb-1">인사말</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                      시작: {selectedPersona.greetingStart}
+                      시작: {selectedPersonaForm.greetingStart}
                       <br />
-                      종료: {selectedPersona.greetingEnd}
+                      종료: {selectedPersonaForm.greetingEnd}
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
                     <b className="block text-[#72508c] text-[12px] mb-1">배경</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                      {selectedPersona.historicalBackground} · {selectedPersona.backgroundDescription}
+                      {selectedPersonaForm.historicalBackground} · {selectedPersonaForm.backgroundDescription}
                     </p>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
                     <b className="block text-[#72508c] text-[12px] mb-1">태그</b>
                     <div className="flex gap-1 flex-wrap mt-1">
-                      {selectedPersona.tags.map((tag) => (
+                      {selectedPersonaForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => (
                         <span
                           key={tag}
                           className="bg-[#f7ecfb] text-[#8d65a5] border border-[#eadcf0] rounded-full px-2 py-0.5 text-[10px] font-bold"
@@ -438,16 +549,16 @@ export default function Page() {
                     <b className="block text-[#72508c] text-[12px] mb-1">승인 상태</b>
                     <span
                       className={`inline-block border rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                        APPROVAL_STYLE[selectedPersona.approvalStatus]
+                        APPROVAL_STYLE[selectedPersonaForm.approvalStatus]
                       }`}
                     >
-                      {APPROVAL_LABEL[selectedPersona.approvalStatus]}
+                      {APPROVAL_LABEL[selectedPersonaForm.approvalStatus]}
                     </span>
                   </div>
                   <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
                     <b className="block text-[#72508c] text-[12px] mb-1">시스템 프롬프트</b>
                     <p className="m-0 text-[#6f6174] text-[11px] leading-relaxed">
-                      {selectedPersona.systemPrompt}
+                      {selectedPersonaForm.systemPrompt}
                     </p>
                   </div>
                 </div>
@@ -792,13 +903,11 @@ export default function Page() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  console.log("페르소나 저장:", personaForm);
-                  setIsPersonaModalOpen(false);
-                }}
-                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2]"
+                onClick={handlePersonaSave}
+                disabled={isSaving}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] disabled:opacity-50"
               >
-                저장
+                {isSaving ? "저장 중..." : "저장"}
               </button>
             </div>
           </div>

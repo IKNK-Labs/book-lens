@@ -31,6 +31,7 @@ export default function Page() {
   const [search, setSearch] = useState("");
   const [autocompleteTitle, setAutocompleteTitle] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isAutocompleting, setIsAutocompleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -71,6 +72,39 @@ export default function Page() {
   const closeModal = () => {
     setEditingBook(null);
     setForm(emptyForm);
+  };
+
+  const handleAutocomplete = async () => {
+    const titleToSearch = autocompleteTitle.trim() || form.title.trim();
+    if (!titleToSearch) {
+      Swal.fire({ icon: "warning", title: "제목 미입력", text: "자동완성할 동화책 제목을 입력해주세요.", confirmButtonColor: "#c7a8ff" });
+      return;
+    }
+
+    setIsAutocompleting(true);
+    try {
+      const res = await fetch("/api/admin/books/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: titleToSearch }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "자동완성에 실패했습니다.");
+      }
+      const data = await res.json();
+      setForm((prev) => ({
+        ...prev,
+        title: prev.title || titleToSearch,
+        author: data.author ?? prev.author,
+        publisher: data.publisher ?? prev.publisher,
+        description: data.description ?? prev.description,
+      }));
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "자동완성 실패", text: err instanceof Error ? err.message : "서버에 연결할 수 없습니다.", confirmButtonColor: "#c7a8ff" });
+    } finally {
+      setIsAutocompleting(false);
+    }
   };
 
   const updateField = (field: keyof BookForm, value: string) => {
@@ -176,14 +210,19 @@ export default function Page() {
                   type="text"
                   value={autocompleteTitle}
                   onChange={(event) => setAutocompleteTitle(event.target.value)}
-                  placeholder="동화책 제목을 입력하세요"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void handleAutocomplete();
+                  }}
+                  placeholder="동화책 제목을 입력하세요 (예: 백설공주, 어린왕자)"
                   className={inputCls + " flex-1"}
                 />
                 <button
                   type="button"
-                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+                  onClick={handleAutocomplete}
+                  disabled={isAutocompleting}
+                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap disabled:opacity-60"
                 >
-                  자동완성
+                  {isAutocompleting ? "생성 중..." : "AI 자동완성"}
                 </button>
               </div>
             </div>
@@ -210,8 +249,9 @@ export default function Page() {
                 <textarea
                   value={form.description}
                   onChange={(event) => updateField("description", event.target.value)}
-                  rows={3}
-                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"
+                  placeholder="동화책의 줄거리를 입력하세요"
+                  rows={12}
+                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
                 />
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
@@ -220,7 +260,7 @@ export default function Page() {
                   value={form.content}
                   onChange={(event) => updateField("content", event.target.value)}
                   rows={5}
-                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"
+                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
                 />
               </div>
             </div>

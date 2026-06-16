@@ -48,6 +48,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD for the external PostgreSQL database}
       DB_HOST: ${DB_HOST:?Set DB_HOST to the external PostgreSQL host}
       DB_PORT: ${DB_PORT:-5432}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
     expose:
       - "8000"
     restart: unless-stopped

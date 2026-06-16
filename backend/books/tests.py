@@ -100,10 +100,18 @@ class BookApiTests(APITestCase):
         self.assertEqual(self.book.content.content, original_content)
 
     def test_admin_book_delete_success(self):
-        response = self.client.delete(f"/api/admin/books/{self.book.id}")
+        book = Book.objects.create(
+            isbn="9780000000005",
+            title="Delete Me",
+            author="Story Keeper",
+            publisher="Cleanup Press",
+            description="A short-lived test book.",
+        )
+
+        response = self.client.delete(f"/api/admin/books/{book.id}")
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Book.objects.filter(id=self.book.id).exists())
+        self.assertFalse(Book.objects.filter(id=book.id).exists())
 
     def test_admin_book_required_field_missing_returns_400(self):
         response = self.client.post(
