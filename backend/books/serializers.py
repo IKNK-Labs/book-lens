@@ -63,3 +63,19 @@ class BookSerializer(serializers.ModelSerializer):
             instance.content = content
             instance._state.fields_cache["content"] = content
         return instance
+
+
+class BookVectorSearchRequestSerializer(serializers.Serializer):
+    query = serializers.CharField(allow_blank=False, trim_whitespace=True)
+    limit = serializers.IntegerField(default=10, min_value=1, max_value=50)
+
+
+class BookVectorSearchResultSerializer(serializers.Serializer):
+    book_id = serializers.IntegerField()
+    title = serializers.CharField()
+    author = serializers.CharField()
+    publisher = serializers.CharField()
+    chunk_id = serializers.IntegerField()
+    chunk_index = serializers.IntegerField()
+    content = serializers.CharField()
+    distance = serializers.FloatField()
