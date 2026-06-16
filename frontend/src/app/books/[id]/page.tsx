@@ -9,7 +9,8 @@ type PageProps = {
   searchParams: Promise<{ auth?: string }>;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const SERVER_API_URL =
+  process.env.SERVER_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function isPositiveIntegerId(value: string) {
   return /^[1-9]\d*$/.test(value);
@@ -21,7 +22,7 @@ async function assertBookExists(id: string) {
     return;
   }
 
-  const baseUrl = API_URL.replace(/\/$/, "");
+  const baseUrl = SERVER_API_URL.replace(/\/$/, "");
   const response = await fetch(`${baseUrl}/api/books/${id}`, {
     cache: "no-store",
   });
