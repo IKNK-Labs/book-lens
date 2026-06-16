@@ -9,7 +9,7 @@ import re
 DEFAULT_CHUNK_MAX_CHARS = 900
 DEFAULT_CHUNK_OVERLAP_CHARS = 120
 
-_SENTENCE_RE = re.compile(r"[^.!?。！？\n]+(?:[.!?。！？]+|$)")
+_SENTENCE_RE = re.compile(r"[^.!?\u3002\uff01\uff1f\n]+(?:[.!?\u3002\uff01\uff1f]+|$)")
 
 
 @dataclass(frozen=True)
