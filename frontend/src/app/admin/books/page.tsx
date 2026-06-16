@@ -84,7 +84,7 @@ export default function Page() {
     setIsSaving(true);
     try {
       const payload: Partial<BookPayload> = {
-        isbn: form.isbn.trim(),
+        isbn: form.isbn.trim() || null,
         title: form.title.trim(),
         author: form.author.trim(),
         publisher: form.publisher.trim(),
@@ -140,7 +140,7 @@ export default function Page() {
                 title={book.title}
                 author={book.author}
                 publisher={book.publisher}
-                isbn={book.isbn}
+                isbn={book.isbn ?? undefined}
                 description={book.description ?? ""}
                 onEdit={() => openEditModal(book)}
               />
