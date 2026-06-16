@@ -58,7 +58,7 @@ export default function Page() {
 
     setIsAutocompleting(true);
     try {
-      const res = await fetch("/api/admin/books/generate/", {
+      const res = await fetch("/api/admin/books/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: titleToSearch }),
@@ -70,12 +70,13 @@ export default function Page() {
       }
 
       const data = await res.json();
+      setAutocompleteTitle("");
       setForm((prev) => ({
         ...prev,
-        title: prev.title || titleToSearch,
-        author: data.author ?? prev.author,
-        publisher: data.publisher ?? prev.publisher,
-        description: data.description ?? prev.description,
+        title: titleToSearch,
+        author: data.author || prev.author,
+        publisher: data.publisher || prev.publisher,
+        description: data.description || prev.description,
       }));
     } catch (err) {
       Swal.fire({
@@ -288,8 +289,8 @@ export default function Page() {
               value={form.description}
               onChange={(e) => updateField("description", e.target.value)}
               placeholder="동화책의 줄거리를 입력하세요"
-              rows={5}
-              className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"
+              rows={12}
+              className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
             />
           </div>
         </div>
