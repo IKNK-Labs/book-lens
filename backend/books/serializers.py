@@ -11,16 +11,48 @@ class BookContentSerializer(serializers.ModelSerializer):
 
 class BookSerializer(serializers.ModelSerializer):
     content = BookContentSerializer(required=False)
+    character_count = serializers.SerializerMethodField()
+    featured_character_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Book
-        fields = ["id", "isbn", "title", "author", "publisher", "description", "updated_at", "content"]
-        read_only_fields = ["id", "updated_at"]
+        fields = [
+            "id",
+            "isbn",
+            "title",
+            "author",
+            "publisher",
+            "description",
+            "updated_at",
+            "content",
+            "character_count",
+            "featured_character_id",
+        ]
+        read_only_fields = ["id", "updated_at", "character_count", "featured_character_id"]
+
+    def get_character_count(self, obj):
+        annotated_count = getattr(obj, "character_count", None)
+        if annotated_count is not None:
+            return annotated_count
+        return obj.characters.count()
+
+    def get_featured_character_id(self, obj):
+        if hasattr(obj, "first_character_id"):
+            return obj.first_character_id
+        character = obj.characters.order_by("id").first()
+        return character.id if character else None
+
+    def to_internal_value(self, data):
+        if "content" in data and isinstance(data["content"], str):
+            data = data.copy()
+            data["content"] = {"content": data["content"]}
+        return super().to_internal_value(data)
 
     def create(self, validated_data):
-        content_data = validated_data.pop("content", None) or {}
+        content_data = validated_data.pop("content", None)
         book = Book.objects.create(**validated_data)
-        BookContent.objects.create(book=book, **content_data)
+        if content_data is not None:
+            BookContent.objects.create(book=book, **content_data)
         return book
 
     def update(self, instance, validated_data):
@@ -29,5 +61,10 @@ class BookSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         if content_data is not None:
-            BookContent.objects.update_or_create(book=instance, defaults=content_data)
+            content, _created = BookContent.objects.update_or_create(
+                book=instance,
+                defaults=content_data,
+            )
+            instance.content = content
+            instance._state.fields_cache["content"] = content
         return instance
