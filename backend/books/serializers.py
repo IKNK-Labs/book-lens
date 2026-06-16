@@ -12,6 +12,7 @@ class BookContentSerializer(serializers.ModelSerializer):
 class BookSerializer(serializers.ModelSerializer):
     content = BookContentSerializer(required=False, allow_null=True)
     character_count = serializers.SerializerMethodField()
+    featured_character_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Book
@@ -25,11 +26,16 @@ class BookSerializer(serializers.ModelSerializer):
             "updated_at",
             "content",
             "character_count",
+            "featured_character_id",
         ]
-        read_only_fields = ["id", "updated_at", "character_count"]
+        read_only_fields = ["id", "updated_at", "character_count", "featured_character_id"]
 
     def get_character_count(self, obj):
         return obj.characters.count()
+
+    def get_featured_character_id(self, obj):
+        character = obj.characters.order_by("id").first()
+        return character.id if character else None
 
     def to_internal_value(self, data):
         if "content" in data and isinstance(data["content"], str):

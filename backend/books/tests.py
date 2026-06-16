@@ -1,6 +1,8 @@
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from characters.models import Character
+
 from .models import Book, BookContent
 
 
@@ -17,6 +19,7 @@ class BookApiTests(APITestCase):
             book=self.book,
             content="Once upon a time there was a kind princess.",
         )
+        self.character = Character.objects.create(book=self.book, name="Snow White")
 
     def payload(self, suffix="2", **overrides):
         data = {
@@ -36,6 +39,7 @@ class BookApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data), 1)
         self.assertIn("character_count", response.data[0])
+        self.assertIn("featured_character_id", response.data[0])
 
     def test_user_book_detail_success(self):
         response = self.client.get(f"/api/books/{self.book.id}")
@@ -43,6 +47,7 @@ class BookApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], self.book.id)
         self.assertEqual(response.data["content"]["content"], self.book.content.content)
+        self.assertEqual(response.data["featured_character_id"], self.character.id)
 
     def test_missing_user_book_returns_404(self):
         response = self.client.get("/api/books/999999")

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, booksApi, type BookResponse } from "../../lib/api";
 import { Card } from "../ui/Card";
@@ -88,6 +89,31 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
 
       <aside className="self-start">
         <Card>
+          <h2 className="text-lg font-black text-[var(--accent-strong)]">이 책으로 시작하기</h2>
+          <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+            동화 구연으로 이야기를 듣고, 등장 캐릭터와 대화를 이어가 보세요.
+          </p>
+          <Link
+            href={`/story/${book.id}`}
+            className="mt-5 block rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white"
+          >
+            동화 구연 시작하기
+          </Link>
+          {book.featured_character_id ? (
+            <Link
+              href={`/chat/${book.featured_character_id}`}
+              className="mt-3 block rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]"
+            >
+              대표 캐릭터와 대화하기
+            </Link>
+          ) : (
+            <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
+              대화 가능한 캐릭터가 등록되면 캐릭터 대화가 열립니다.
+            </p>
+          )}
+        </Card>
+
+        <Card className="mt-4">
           <h2 className="text-lg font-black text-[var(--accent-strong)]">도서 정보</h2>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>

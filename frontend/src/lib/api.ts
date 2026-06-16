@@ -84,6 +84,7 @@ export type BookResponse = Omit<BookPayload, "content"> & {
   updated_at: string;
   content: { content: string } | null;
   character_count: number;
+  featured_character_id: number | null;
 };
 
 export const adminBooksApi = {
