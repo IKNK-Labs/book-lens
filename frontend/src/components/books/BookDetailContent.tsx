@@ -2,12 +2,83 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { Book } from "../../data/mock";
+import { mockBooks } from "../../data/mock";
 import { ApiError, booksApi, type BookResponse } from "../../lib/api";
 import { Card } from "../ui/Card";
 import { Chip } from "../ui/Chip";
 
+type BookInfoItem = {
+  label: string;
+  value: string;
+};
+
+type BookDetailViewModel = {
+  id: string;
+  title: string;
+  description: string;
+  coverEmoji: string;
+  genres: string[];
+  characterCount: number;
+  recommendedFor: string;
+  storyHref: string;
+  chatHref?: string;
+  content?: string;
+  infoItems: BookInfoItem[];
+};
+
+function isPositiveIntegerId(value: string) {
+  return /^[1-9]\d*$/.test(value);
+}
+
+function compactInfoItems(items: Array<BookInfoItem | null>) {
+  return items.filter((item): item is BookInfoItem => Boolean(item?.value.trim()));
+}
+
+function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
+  const description = book.description || "등록된 소개가 없습니다.";
+  const content = book.content?.content;
+
+  return {
+    id: String(book.id),
+    title: book.title,
+    description,
+    coverEmoji: "📖",
+    genres: ["도서"],
+    characterCount: book.character_count ?? 0,
+    recommendedFor: "등록된 도서 상세를 확인해 보세요.",
+    storyHref: `/story/${book.id}`,
+    chatHref: book.featured_character_id ? `/chat/${book.featured_character_id}` : undefined,
+    content: content || undefined,
+    infoItems: compactInfoItems([
+      { label: "저자", value: book.author },
+      { label: "출판사", value: book.publisher },
+      { label: "ISBN", value: book.isbn },
+    ]),
+  };
+}
+
+function toDetailViewModelFromMockBook(book: Book): BookDetailViewModel {
+  return {
+    id: book.id,
+    title: book.title,
+    description: book.description || book.summary || "등록된 소개가 없습니다.",
+    coverEmoji: book.coverEmoji || "📖",
+    genres: book.genres?.length ? book.genres : ["도서"],
+    characterCount: book.characterCount ?? 0,
+    recommendedFor: book.recommendedFor || "이야기를 살펴보고 캐릭터와 대화를 이어가 보세요.",
+    storyHref: `/story/${book.id}`,
+    chatHref: book.featuredCharacterId ? `/chat/${book.featuredCharacterId}` : undefined,
+    content: book.summary || undefined,
+    infoItems: compactInfoItems([
+      { label: "추천", value: book.label },
+      { label: "읽기 시간", value: book.readingTime },
+    ]),
+  };
+}
+
 export function BookDetailContent({ bookId }: { bookId: string }) {
-  const [book, setBook] = useState<BookResponse | null>(null);
+  const [book, setBook] = useState<BookDetailViewModel | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -17,9 +88,24 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
     async function loadBook() {
       setIsLoading(true);
       setError("");
+      setBook(null);
+
+      if (!isPositiveIntegerId(bookId)) {
+        const fallbackBook = mockBooks.find((item) => item.id === bookId);
+        if (isCurrent) {
+          if (fallbackBook) {
+            setBook(toDetailViewModelFromMockBook(fallbackBook));
+          } else {
+            setError("도서 정보를 찾을 수 없습니다.");
+          }
+          setIsLoading(false);
+        }
+        return;
+      }
+
       try {
         const item = await booksApi.detail(Number(bookId));
-        if (isCurrent) setBook(item);
+        if (isCurrent) setBook(toDetailViewModelFromApiBook(item));
       } catch (err) {
         if (!isCurrent) return;
         if (err instanceof ApiError && err.status === 404) {
@@ -56,33 +142,33 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
     );
   }
 
-  const content = book.content?.content;
-
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <section className="rounded-[36px] border border-[var(--line)] bg-[var(--surface)] p-7 shadow-[var(--shadow)] sm:p-10">
         <div className="grid gap-6 sm:grid-cols-[160px_1fr] sm:items-start">
           <div className="grid h-40 place-items-center rounded-[32px] bg-gradient-to-br from-[var(--surface-soft)] via-[var(--accent-soft)] to-[var(--surface-muted)] text-7xl">
-            📖
+            {book.coverEmoji}
           </div>
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-              {book.publisher} · ISBN {book.isbn}
+              {book.genres.join(" · ")}
             </p>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.06em] text-[var(--accent-strong)] sm:text-4xl">
               {book.title}
             </h1>
-            <p className="mt-4 text-base leading-7 text-[var(--muted)]">{book.description || "등록된 소개가 없습니다."}</p>
+            <p className="mt-4 text-base leading-7 text-[var(--muted)]">{book.description}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Chip>{book.author}</Chip>
-              <Chip>대화 가능 캐릭터 {book.character_count ?? 0}명</Chip>
+              {book.genres.map((genre) => (
+                <Chip key={genre}>{genre}</Chip>
+              ))}
+              <Chip>대화 가능 캐릭터 {book.characterCount}명</Chip>
             </div>
           </div>
         </div>
-        {content ? (
+        {book.content ? (
           <Card className="mt-8 shadow-none">
             <h2 className="text-lg font-black text-[var(--accent-strong)]">본문</h2>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{content}</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{book.content}</p>
           </Card>
         ) : null}
       </section>
@@ -93,15 +179,18 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
             동화 구연으로 이야기를 듣고, 등장 캐릭터와 대화를 이어가 보세요.
           </p>
+          <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
+            {book.recommendedFor}
+          </p>
           <Link
-            href={`/story/${book.id}`}
+            href={book.storyHref}
             className="mt-5 block rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white"
           >
             동화 구연 시작하기
           </Link>
-          {book.featured_character_id ? (
+          {book.chatHref ? (
             <Link
-              href={`/chat/${book.featured_character_id}`}
+              href={book.chatHref}
               className="mt-3 block rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]"
             >
               대표 캐릭터와 대화하기
@@ -113,23 +202,19 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
           )}
         </Card>
 
-        <Card className="mt-4">
-          <h2 className="text-lg font-black text-[var(--accent-strong)]">도서 정보</h2>
-          <dl className="mt-4 grid gap-3 text-sm">
-            <div>
-              <dt className="font-black text-[var(--accent-strong)]">저자</dt>
-              <dd className="mt-1 text-[var(--muted)]">{book.author}</dd>
-            </div>
-            <div>
-              <dt className="font-black text-[var(--accent-strong)]">출판사</dt>
-              <dd className="mt-1 text-[var(--muted)]">{book.publisher}</dd>
-            </div>
-            <div>
-              <dt className="font-black text-[var(--accent-strong)]">ISBN</dt>
-              <dd className="mt-1 text-[var(--muted)]">{book.isbn}</dd>
-            </div>
-          </dl>
-        </Card>
+        {book.infoItems.length ? (
+          <Card className="mt-4">
+            <h2 className="text-lg font-black text-[var(--accent-strong)]">도서 정보</h2>
+            <dl className="mt-4 grid gap-3 text-sm">
+              {book.infoItems.map((item) => (
+                <div key={item.label}>
+                  <dt className="font-black text-[var(--accent-strong)]">{item.label}</dt>
+                  <dd className="mt-1 text-[var(--muted)]">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        ) : null}
       </aside>
     </div>
   );
