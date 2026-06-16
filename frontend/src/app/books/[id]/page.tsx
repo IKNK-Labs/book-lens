@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { AppShell } from "../../../components/layout/AppShell";
 import { BookDetailContent } from "../../../components/books/BookDetailContent";
@@ -9,10 +10,19 @@ type PageProps = {
   searchParams: Promise<{ auth?: string }>;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
 function isPositiveIntegerId(value: string) {
   return /^[1-9]\d*$/.test(value);
+}
+
+async function getRequestOrigin() {
+  const requestHeaders = await headers();
+  const forwardedProto = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const protocol = forwardedProto || "http";
+  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
+
+  if (!host) return null;
+
+  return `${protocol}://${host}`;
 }
 
 async function assertBookExists(id: string) {
@@ -21,8 +31,10 @@ async function assertBookExists(id: string) {
     return;
   }
 
-  const baseUrl = API_URL.replace(/\/$/, "");
-  const response = await fetch(`${baseUrl}/api/books/${id}`, {
+  const origin = await getRequestOrigin();
+  if (!origin) return;
+
+  const response = await fetch(`${origin}/api/books/${id}`, {
     cache: "no-store",
   });
 
