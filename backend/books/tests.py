@@ -86,6 +86,19 @@ class BookApiTests(APITestCase):
         self.assertEqual(self.book.content.content, "Updated story content.")
         self.assertEqual(response.data["content"]["content"], "Updated story content.")
 
+    def test_admin_book_patch_null_content_returns_400_and_keeps_content(self):
+        original_content = self.book.content.content
+
+        response = self.client.patch(
+            f"/api/admin/books/{self.book.id}",
+            {"content": None},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.book.refresh_from_db()
+        self.assertEqual(self.book.content.content, original_content)
+
     def test_admin_book_delete_success(self):
         response = self.client.delete(f"/api/admin/books/{self.book.id}")
 

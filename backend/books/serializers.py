@@ -10,7 +10,7 @@ class BookContentSerializer(serializers.ModelSerializer):
 
 
 class BookSerializer(serializers.ModelSerializer):
-    content = BookContentSerializer(required=False, allow_null=True)
+    content = BookContentSerializer(required=False)
     character_count = serializers.SerializerMethodField()
     featured_character_id = serializers.SerializerMethodField()
 
