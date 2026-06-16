@@ -111,7 +111,7 @@ export default function Page() {
     setIsSubmitting(true);
     try {
       await adminBooksApi.create({
-        isbn: form.isbn.trim(),
+        isbn: form.isbn.trim() || null,
         title: form.title.trim(),
         author: form.author.trim(),
         publisher: form.publisher.trim(),

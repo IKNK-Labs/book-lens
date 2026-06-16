@@ -118,7 +118,7 @@ export const adminPersonasApi = {
 };
 
 export type BookPayload = {
-  isbn: string;
+  isbn: string | null;
   title: string;
   author: string;
   publisher: string;
