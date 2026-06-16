@@ -60,6 +60,53 @@ export const adminCharactersApi = {
 
 // ── Books ──────────────────────────────────────────────
 
+export type ApprovalStatus = "draft" | "approved" | "rejected";
+
+export type PersonaPayload = {
+  character_id: number;
+  book_id: number;
+  greeting_open?: string;
+  greeting_close?: string;
+  personality?: string;
+  speech_style?: string;
+  catchphrase?: string;
+  bio?: string;
+  tags?: string[];
+  opening_scene?: string;
+  era?: string;
+  background?: string;
+  user_role?: string;
+  user_relationship?: string;
+  system_prompt?: string;
+  approved_status?: ApprovalStatus;
+};
+
+export type PersonaResponse = PersonaPayload & {
+  id: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export const adminPersonasApi = {
+  list: (characterId: number) =>
+    request<PersonaResponse[]>(`/api/admin/personas?character_id=${characterId}`),
+
+  create: (payload: PersonaPayload) =>
+    request<PersonaResponse>("/api/admin/personas", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  update: (id: number, payload: Partial<PersonaPayload>) =>
+    request<PersonaResponse>(`/api/admin/personas/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  delete: (id: number) =>
+    request<void>(`/api/admin/personas/${id}`, { method: "DELETE" }),
+};
+
 export type BookPayload = {
   isbn: string;
   title: string;

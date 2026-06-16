@@ -9,5 +9,6 @@ urlpatterns = [
     re_path(r"^api/books/?", include("books.urls")),
     re_path(r"^api/admin/books/?", include("books.admin_urls")),
     re_path(r"^api/admin/characters/?", include("characters.admin_urls")),
+    re_path(r"^api/admin/personas/?", include("characters.persona_admin_urls")),
     path("admin/", admin.site.urls),
 ]
