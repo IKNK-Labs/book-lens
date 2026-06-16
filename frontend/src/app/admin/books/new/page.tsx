@@ -15,7 +15,6 @@ type BookForm = {
 };
 
 const REQUIRED_FIELDS: { key: keyof BookForm; label: string }[] = [
-  { key: "isbn", label: "ISBN" },
   { key: "title", label: "제목" },
   { key: "author", label: "저자" },
   { key: "publisher", label: "출판사" },
@@ -116,7 +115,6 @@ export default function Page() {
         author: form.author.trim(),
         publisher: form.publisher.trim(),
         description: form.description.trim(),
-        content: form.description.trim(),
       });
 
       await Swal.fire({
@@ -232,9 +230,7 @@ export default function Page() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className={fieldWrapCls}>
-            <label className={labelCls}>
-              ISBN <span className="text-[#f0a0b0]">*</span>
-            </label>
+            <label className={labelCls}>ISBN</label>
             <input
               type="text"
               value={form.isbn}
@@ -291,7 +287,7 @@ export default function Page() {
               value={form.description}
               onChange={(event) => updateField("description", event.target.value)}
               placeholder="동화책의 줄거리를 입력하세요"
-              rows={12}
+              rows={6}
               className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
             />
           </div>

@@ -99,6 +99,7 @@ export default function Page() {
         author: data.author ?? prev.author,
         publisher: data.publisher ?? prev.publisher,
         description: data.description ?? prev.description,
+        content: data.content || prev.content,
       }));
     } catch (err) {
       Swal.fire({ icon: "error", title: "자동완성 실패", text: err instanceof Error ? err.message : "서버에 연결할 수 없습니다.", confirmButtonColor: "#c7a8ff" });
@@ -113,11 +114,11 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!editingBook) return;
-    if (!form.isbn.trim() || !form.title.trim() || !form.author.trim() || !form.publisher.trim()) {
+    if (!form.title.trim() || !form.author.trim() || !form.publisher.trim()) {
       Swal.fire({
         icon: "warning",
         title: "필수 항목 미입력",
-        text: "ISBN, 제목, 저자, 출판사는 필수입니다.",
+        text: "제목, 저자, 출판사는 필수입니다.",
         confirmButtonColor: "#c7a8ff",
       });
       return;
@@ -149,6 +150,7 @@ export default function Page() {
   const inputCls = "w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]";
   const fieldWrapCls = "bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5";
   const labelCls = "block text-[10px] font-bold text-[#9b74ad] mb-1.5";
+  const textareaCls = "w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]";
 
   return (
     <div>
@@ -229,7 +231,7 @@ export default function Page() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={fieldWrapCls}>
-                <label className={labelCls}>ISBN *</label>
+                <label className={labelCls}>ISBN</label>
                 <input type="text" value={form.isbn} onChange={(event) => updateField("isbn", event.target.value)} className={inputCls} />
               </div>
               <div className={fieldWrapCls}>
@@ -245,22 +247,23 @@ export default function Page() {
                 <input type="text" value={form.publisher} onChange={(event) => updateField("publisher", event.target.value)} className={inputCls} />
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
-                <label className={labelCls}>줄거리</label>
+                <label className={labelCls}>줄거리 (200자 이내)</label>
                 <textarea
                   value={form.description}
                   onChange={(event) => updateField("description", event.target.value)}
                   placeholder="동화책의 줄거리를 입력하세요"
-                  rows={12}
-                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
+                  rows={6}
+                  className={textareaCls}
                 />
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
-                <label className={labelCls}>본문</label>
+                <label className={labelCls}>본문 (500~1000자)</label>
                 <textarea
                   value={form.content}
-                  onChange={(event) => updateField("content", event.target.value)}
-                  rows={5}
-                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
+                  onChange={(e) => updateField("content", e.target.value)}
+                  placeholder="동화 본문을 입력하세요 (AI 자동완성으로 채울 수 있습니다)"
+                  rows={18}
+                  className={textareaCls}
                 />
               </div>
             </div>

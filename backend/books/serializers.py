@@ -31,9 +31,14 @@ class BookSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "updated_at", "character_count", "featured_character_id"]
 
     def get_character_count(self, obj):
+        annotated_count = getattr(obj, "character_count", None)
+        if annotated_count is not None:
+            return annotated_count
         return obj.characters.count()
 
     def get_featured_character_id(self, obj):
+        if hasattr(obj, "first_character_id"):
+            return obj.first_character_id
         character = obj.characters.order_by("id").first()
         return character.id if character else None
 
