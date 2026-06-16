@@ -116,7 +116,6 @@ export default function Page() {
         author: form.author.trim(),
         publisher: form.publisher.trim(),
         description: form.description.trim(),
-        content: form.description.trim(),
       });
 
       await Swal.fire({

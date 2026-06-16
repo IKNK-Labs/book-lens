@@ -1,7 +1,7 @@
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from characters.models import Character
+from characters.models import Character, Persona
 
 from .models import Book, BookContent
 
@@ -112,6 +112,23 @@ class BookApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Book.objects.filter(id=book.id).exists())
+
+    def test_admin_book_delete_with_persona_success(self):
+        book = Book.objects.create(
+            isbn="9780000000006",
+            title="Delete Me With Persona",
+            author="Story Keeper",
+            publisher="Cleanup Press",
+            description="A test book with a persona.",
+        )
+        character = Character.objects.create(book=book, name="Delete Character")
+        Persona.objects.create(book=book, character=character)
+
+        response = self.client.delete(f"/api/admin/books/{book.id}")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Book.objects.filter(id=book.id).exists())
+        self.assertFalse(Persona.objects.filter(book_id=book.id).exists())
 
     def test_admin_book_required_field_missing_returns_400(self):
         response = self.client.post(
