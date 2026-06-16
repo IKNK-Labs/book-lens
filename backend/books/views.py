@@ -24,10 +24,12 @@ from .serializers import (
 
 _GENERATE_PROMPT = """동화책 제목이 주어지면 아래 JSON 형식으로만 응답하세요. 다른 설명은 쓰지 마세요.
 
+중요: description 필드는 공백 포함 200자를 절대 초과하지 마세요. 한 두 문장으로 핵심만 요약하세요.
+
 {{
   "author": "원작자 이름",
   "publisher": "대표 출판사 이름",
-  "description": "줄거리 요약 (200자 이내, 한국어)",
+  "description": "줄거리 핵심 요약, 공백 포함 200자 이내, 한국어, 두 문장 이내",
   "content": "동화 본문 (아이 친화적 문체, 500자~1000자, 한국어)"
 }}
 
@@ -78,10 +80,17 @@ class BookGenerateView(APIView):
         except json.JSONDecodeError:
             return Response({"error": "AI 응답을 파싱할 수 없습니다.", "raw": raw}, status=500)
 
+        description = data.get("description", "")
+        if len(description) > 200:
+            # 200자 이내 마지막 문장 경계(다./요./다!/요!)에서 자름
+            cutoff = description[:200]
+            last_end = max(cutoff.rfind("다."), cutoff.rfind("요."), cutoff.rfind("다!"), cutoff.rfind("요!"))
+            description = cutoff[:last_end + 2] if last_end > 50 else cutoff[:200]
+
         return Response({
             "author": data.get("author", ""),
             "publisher": data.get("publisher", ""),
-            "description": data.get("description", ""),
+            "description": description,
             "content": data.get("content", ""),
         })
 
