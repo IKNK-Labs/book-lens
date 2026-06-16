@@ -1,0 +1,261 @@
+{
+  "info": {
+    "name": "BookLens Books API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "book_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "health check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/health/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('health check succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin books list",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/admin/books"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('admin books list succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin book create",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isbn\": \"978{{$timestamp}}\",\n  \"title\": \"Newman Smoke Book {{$timestamp}}\",\n  \"author\": \"Newman Author\",\n  \"publisher\": \"Newman Publisher\",\n  \"description\": \"Created by Newman API smoke test.\",\n  \"content\": \"Created content from Newman.\"\n}"
+        },
+        "url": "{{baseUrl}}/api/admin/books"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('admin book create succeeds', function () {",
+              "  pm.response.to.have.status(201);",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.id).to.be.a('number');",
+              "  pm.collectionVariables.set('book_id', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin book detail",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/admin/books/{{book_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('admin book detail succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('book_id')));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin book update",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Newman Updated Book\",\n  \"content\": \"Updated content from Newman.\"\n}"
+        },
+        "url": "{{baseUrl}}/api/admin/books/{{book_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('admin book update succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.title).to.eql('Newman Updated Book');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "user books list",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/books"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('user books list succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "user book detail",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/books/{{book_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('user book detail succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.id).to.eql(Number(pm.collectionVariables.get('book_id')));",
+              "  pm.expect(body.content.content).to.eql('Updated content from Newman.');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "user book 404",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/books/999999999"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('missing user book returns 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "user books search",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/books?search=Newman"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('user books search succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().length).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin books search",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/admin/books?search=Newman"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('admin books search succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().length).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin book delete",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/admin/books/{{book_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('admin book delete succeeds', function () {",
+              "  pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -24,13 +24,13 @@ class Character(models.Model):
 class Persona(models.Model):
     character = models.ForeignKey(
         Character,
-        on_delete=models.CASCADE,
+        on_delete=models.DO_NOTHING,
         related_name="personas",
         db_column="character_id",
     )
     book = models.ForeignKey(
         Book,
-        on_delete=models.CASCADE,
+        on_delete=models.DO_NOTHING,
         related_name="personas",
         db_column="book_id",
     )
