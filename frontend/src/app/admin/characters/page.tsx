@@ -60,24 +60,6 @@ const EMPTY_PERSONA_FORM: PersonaForm = {
   approvalStatus: "draft",
 };
 
-const MOCK_CHARACTER_AUTOCOMPLETE: Record<string, Omit<CharacterPayload, "book_id">> = {
-  마녀: {
-    name: "마녀",
-    role: "악역",
-    gender: "여성",
-    emoji: "🧙",
-    description:
-      "백설공주와 일곱 난쟁이 속 마녀. 거울의 말에 상처받고 질투심을 느끼지만, 해로운 행동을 미화하지 않도록 설정합니다.",
-  },
-  신데렐라: {
-    name: "신데렐라",
-    role: "주인공",
-    gender: "여성",
-    emoji: "👸",
-    description:
-      "계모와 언니들의 구박을 받으면서도 희망을 잃지 않는 착한 마음씨의 주인공입니다.",
-  },
-};
 
 function getPersonaFormFromMock(characterId: number): PersonaForm {
   const p = mockPersonas.find((m) => m.characterId === String(characterId));
@@ -166,6 +148,7 @@ export default function Page() {
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
   const [personasByCharacterId, setPersonasByCharacterId] = useState<Record<number, PersonaResponse>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isCharacterAutocompleting, setIsCharacterAutocompleting] = useState(false);
 
   // character modal
   const [isCharacterModalOpen, setIsCharacterModalOpen] = useState(false);
@@ -240,9 +223,43 @@ export default function Page() {
     setIsCharacterModalOpen(true);
   };
 
-  const handleCharacterAutocomplete = () => {
-    const mock = MOCK_CHARACTER_AUTOCOMPLETE[characterNameInput];
-    if (mock) setCharacterForm(mock);
+  const handleCharacterAutocomplete = async () => {
+    const name = characterNameInput.trim();
+    if (!name) {
+      Swal.fire({ icon: "warning", title: "캐릭터명 미입력", text: "자동완성할 캐릭터 이름을 입력해주세요.", confirmButtonColor: "#c7a8ff" });
+      return;
+    }
+    if (!selectedBook) return;
+
+    setIsCharacterAutocompleting(true);
+    try {
+      const res = await fetch("/api/admin/characters/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ book_title: selectedBook.title, character_name: name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "자동완성에 실패했습니다.");
+      }
+      setCharacterForm({
+        name: data.name,
+        role: data.role,
+        gender: data.gender,
+        emoji: data.emoji,
+        description: data.description,
+        profile_image_url: data.profile_image_url,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "자동완성 실패",
+        text: err instanceof Error ? err.message : "서버에 연결할 수 없습니다.",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } finally {
+      setIsCharacterAutocompleting(false);
+    }
   };
 
   const CHARACTER_REQUIRED: { key: keyof typeof characterForm; label: string }[] = [
@@ -598,9 +615,10 @@ export default function Page() {
                 <button
                   type="button"
                   onClick={handleCharacterAutocomplete}
-                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+                  disabled={isCharacterAutocompleting}
+                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap disabled:opacity-60"
                 >
-                  자동완성
+                  {isCharacterAutocompleting ? "생성 중..." : "AI 자동완성"}
                 </button>
               </div>
             </div>
