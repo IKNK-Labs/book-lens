@@ -7,10 +7,11 @@ import Swal from "sweetalert2";
 import { adminBooksApi, ApiError } from "@/lib/api";
 
 const REQUIRED_FIELDS: { key: string; label: string }[] = [
+  { key: "isbn", label: "ISBN" },
   { key: "title", label: "제목" },
   { key: "author", label: "저자" },
   { key: "publisher", label: "출판사" },
-  { key: "synopsis", label: "줄거리" },
+  { key: "description", label: "줄거리" },
 ];
 
 export default function Page() {
@@ -20,18 +21,18 @@ export default function Page() {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [publisher, setPublisher] = useState("");
-  const [synopsis, setSynopsis] = useState("");
+  const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fieldValues: Record<string, string> = { isbn, title, author, publisher, synopsis };
+  const fieldValues: Record<string, string> = { isbn, title, author, publisher, description };
 
   const validate = () => {
-    const missing = REQUIRED_FIELDS.filter((f) => !fieldValues[f.key].trim());
+    const missing = REQUIRED_FIELDS.filter((field) => !fieldValues[field.key].trim());
     if (missing.length > 0) {
       Swal.fire({
         icon: "warning",
         title: "필수 항목 미입력",
-        html: missing.map((f) => `<b>${f.label}</b>`).join(", ") + " 칸을 입력해주세요.",
+        html: missing.map((field) => `<b>${field.label}</b>`).join(", ") + " 값을 입력해 주세요.",
         confirmButtonText: "확인",
         confirmButtonColor: "#c7a8ff",
       });
@@ -50,13 +51,14 @@ export default function Page() {
         title: title.trim(),
         author: author.trim(),
         publisher: publisher.trim(),
-        description: synopsis.trim(),
+        description: description.trim(),
+        content: description.trim(),
       });
 
       await Swal.fire({
         icon: "success",
-        title: "등록되었습니다",
-        text: `"${title.trim()}" 동화책이 성공적으로 등록되었습니다.`,
+        title: "등록되었습니다.",
+        text: `"${title.trim()}" 도서가 등록되었습니다.`,
         confirmButtonText: "확인",
         confirmButtonColor: "#c7a8ff",
       });
@@ -64,10 +66,9 @@ export default function Page() {
       router.push("/admin/books");
     } catch (err) {
       if (err instanceof ApiError) {
-        // DRF 필드 에러 → 읽기 쉬운 메시지로 변환
         const messages = Object.entries(err.data)
           .map(([field, msg]) => {
-            const label = REQUIRED_FIELDS.find((f) => f.key === field)?.label ?? field;
+            const label = REQUIRED_FIELDS.find((item) => item.key === field)?.label ?? field;
             const text = Array.isArray(msg) ? (msg as string[]).join(" ") : String(msg);
             return `<b>${label}</b>: ${text}`;
           })
@@ -76,7 +77,7 @@ export default function Page() {
         Swal.fire({
           icon: "error",
           title: "저장 실패",
-          html: messages || "저장에 실패했습니다. 잠시 후 다시 시도해주세요.",
+          html: messages || "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.",
           confirmButtonText: "확인",
           confirmButtonColor: "#c7a8ff",
         });
@@ -84,7 +85,7 @@ export default function Page() {
         Swal.fire({
           icon: "error",
           title: "네트워크 오류",
-          text: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
+          text: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
           confirmButtonText: "확인",
           confirmButtonColor: "#c7a8ff",
         });
@@ -94,17 +95,14 @@ export default function Page() {
     }
   };
 
+  const inputClass = "w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]";
+
   return (
     <div>
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
-          <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">
-            동화책 등록
-          </h3>
-          <p className="mt-1.5 text-[13px] text-[#94859d]">
-            동화책 정보를 입력하고 저장하세요. AI 자동완성과 ISBN 스캔으로
-            입력을 도울 수 있습니다.
-          </p>
+          <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">동화책 등록</h3>
+          <p className="mt-1.5 text-[13px] text-[#94859d]">동화책 정보를 입력하고 저장합니다.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Link
@@ -145,54 +143,30 @@ export default function Page() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
-              ISBN
+              ISBN <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input
-              type="text"
-              value={isbn}
-              onChange={(e) => setIsbn(e.target.value)}
-              placeholder="예: 9788925557373"
-              className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
-            />
+            <input type="text" value={isbn} onChange={(event) => setIsbn(event.target.value)} placeholder="예: 9788925557373" className={inputClass} />
           </div>
 
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
               제목 <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="동화책 제목을 입력하세요"
-              className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
-            />
+            <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="동화책 제목을 입력하세요" className={inputClass} />
           </div>
 
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
               저자 <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input
-              type="text"
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-              placeholder="저자명을 입력하세요"
-              className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
-            />
+            <input type="text" value={author} onChange={(event) => setAuthor(event.target.value)} placeholder="저자명을 입력하세요" className={inputClass} />
           </div>
 
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5">
             <label className="block text-[10px] font-bold text-[#9b74ad] mb-1.5">
               출판사 <span className="text-[#f0a0b0]">*</span>
             </label>
-            <input
-              type="text"
-              value={publisher}
-              onChange={(e) => setPublisher(e.target.value)}
-              placeholder="출판사명을 입력하세요"
-              className="w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]"
-            />
+            <input type="text" value={publisher} onChange={(event) => setPublisher(event.target.value)} placeholder="출판사명을 입력하세요" className={inputClass} />
           </div>
 
           <div className="bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5 sm:col-span-2">
@@ -200,8 +174,8 @@ export default function Page() {
               줄거리 <span className="text-[#f0a0b0]">*</span>
             </label>
             <textarea
-              value={synopsis}
-              onChange={(e) => setSynopsis(e.target.value)}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
               placeholder="동화책의 줄거리를 입력하세요"
               rows={5}
               className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"

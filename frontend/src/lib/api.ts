@@ -18,7 +18,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, data);
   }
 
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return res.json() as Promise<T>;
+}
+
+function withSearch(path: string, search?: string) {
+  if (!search?.trim()) return path;
+  const params = new URLSearchParams({ search: search.trim() });
+  return `${path}?${params.toString()}`;
 }
 
 // ── Characters ─────────────────────────────────────────
@@ -66,12 +76,15 @@ export type BookPayload = {
   author: string;
   publisher: string;
   description: string;
+  content?: string | { content: string };
 };
 
-export type BookResponse = BookPayload & {
+export type BookResponse = Omit<BookPayload, "content"> & {
   id: number;
   updated_at: string;
   content: { content: string } | null;
+  character_count: number;
+  featured_character_id: number | null;
 };
 
 export const adminBooksApi = {
@@ -90,5 +103,13 @@ export const adminBooksApi = {
   delete: (id: number) =>
     request<void>(`/api/admin/books/${id}`, { method: "DELETE" }),
 
-  list: () => request<BookResponse[]>("/api/admin/books"),
+  list: (search?: string) => request<BookResponse[]>(withSearch("/api/admin/books", search)),
+
+  detail: (id: number) => request<BookResponse>(`/api/admin/books/${id}`),
+};
+
+export const booksApi = {
+  list: (search?: string) => request<BookResponse[]>(withSearch("/api/books", search)),
+
+  detail: (id: number) => request<BookResponse>(`/api/books/${id}`),
 };
