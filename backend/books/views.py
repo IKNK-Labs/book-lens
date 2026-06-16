@@ -4,21 +4,21 @@ import re
 
 from google import genai
 from google.genai import types
+from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
-from .models import Book
-from .serializers import BookSerializer
+from .models import Book, BookContent
+from .serializers import BookContentSerializer, BookSerializer
 
 _GENERATE_PROMPT = """동화책 제목이 주어지면 아래 JSON 형식으로만 응답하세요. 다른 설명은 쓰지 마세요.
 
 {{
   "author": "원작자 이름",
   "publisher": "대표 출판사 이름",
-  "description": "줄거리 요약 (200자 이내, 한국어)",
-  "content": "동화 본문 (아이 친화적 문체, 1000자 이내, 한국어)"
+  "description": "줄거리 요약 (500자~1000자, 한국어)"
 }}
 
 동화책 제목: "{title}"
@@ -47,18 +47,24 @@ class BookGenerateView(APIView):
             contents=_GENERATE_PROMPT.format(title=title),
             config=types.GenerateContentConfig(
                 temperature=0.3,
-                max_output_tokens=2048,
+                max_output_tokens=4096,
                 response_mime_type="application/json", # 강제로 JSON만 출력하게 하기
             ),
         )
 
         raw = result.text.strip()
-        # 마크다운 코드 블록(```json ... ```) 제거
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
         print(raw)
+
+        # 코드 블록 안의 JSON 우선 추출, 없으면 첫 번째 JSON 객체 추출
+        json_block = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
+        if json_block:
+            candidate = json_block.group(1).strip()
+        else:
+            json_obj = re.search(r"\{[\s\S]*\}", raw)
+            candidate = json_obj.group(0) if json_obj else raw
+
         try:
-            data = json.loads(raw)
+            data = json.loads(candidate)
         except json.JSONDecodeError:
             return Response({"error": "AI 응답을 파싱할 수 없습니다.", "raw": raw}, status=500)
 
@@ -66,7 +72,6 @@ class BookGenerateView(APIView):
             "author": data.get("author", ""),
             "publisher": data.get("publisher", ""),
             "description": data.get("description", ""),
-            "content": data.get("content", ""),
         })
 
 
@@ -78,6 +83,30 @@ class BookAdminViewSet(ModelViewSet):
     serializer_class = BookSerializer
     permission_classes = [AllowAny]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    filter_backends = [SearchFilter]
+    search_fields = ["title", "author", "publisher", "isbn", "description"]
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        fresh_instance = self.get_queryset().get(pk=serializer.instance.pk)
+        data = self.get_serializer(fresh_instance).data
+        content = BookContent.objects.filter(book=fresh_instance).first()
+        data["content"] = BookContentSerializer(content).data if content else None
+        if "content" in request.data:
+            request_content = request.data["content"]
+            if isinstance(request_content, dict):
+                request_content = request_content.get("content", "")
+            data["content"] = {"content": request_content}
+        return Response(data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
 
 
 class BookViewSet(ReadOnlyModelViewSet):
@@ -85,3 +114,5 @@ class BookViewSet(ReadOnlyModelViewSet):
     queryset = Book.objects.select_related("content").all()
     serializer_class = BookSerializer
     permission_classes = [AllowAny]
+    filter_backends = [SearchFilter]
+    search_fields = ["title", "author", "publisher", "isbn", "description"]

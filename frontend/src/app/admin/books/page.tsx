@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import BookCard from "@/components/admin/BookCard";
-import { adminBooksApi, type BookResponse, type BookPayload, ApiError } from "@/lib/api";
+import { adminBooksApi, ApiError, type BookPayload, type BookResponse } from "@/lib/api";
 
 type BookForm = {
   isbn: string;
@@ -12,19 +12,49 @@ type BookForm = {
   author: string;
   publisher: string;
   description: string;
+  content: string;
+};
+
+const emptyForm: BookForm = {
+  isbn: "",
+  title: "",
+  author: "",
+  publisher: "",
+  description: "",
+  content: "",
 };
 
 export default function Page() {
   const [books, setBooks] = useState<BookResponse[]>([]);
   const [editingBook, setEditingBook] = useState<BookResponse | null>(null);
-  const [form, setForm] = useState<BookForm>({ isbn: "", title: "", author: "", publisher: "", description: "" });
+  const [form, setForm] = useState<BookForm>(emptyForm);
+  const [search, setSearch] = useState("");
   const [autocompleteTitle, setAutocompleteTitle] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [isAutocompleting, setIsAutocompleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    adminBooksApi.list().then(setBooks).catch(console.error);
-  }, []);
+    let isCurrent = true;
+
+    async function loadBooks() {
+      setIsLoading(true);
+      try {
+        const items = await adminBooksApi.list(search);
+        if (isCurrent) setBooks(items);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (isCurrent) setIsLoading(false);
+      }
+    }
+
+    void loadBooks();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [search]);
 
   const openEditModal = (book: BookResponse) => {
     setEditingBook(book);
@@ -34,11 +64,15 @@ export default function Page() {
       author: book.author,
       publisher: book.publisher,
       description: book.description ?? "",
+      content: book.content?.content ?? "",
     });
     setAutocompleteTitle("");
   };
 
-  const closeModal = () => setEditingBook(null);
+  const closeModal = () => {
+    setEditingBook(null);
+    setForm(emptyForm);
+  };
 
   const handleAutocomplete = async () => {
     const titleToSearch = autocompleteTitle.trim() || form.title.trim();
@@ -46,9 +80,10 @@ export default function Page() {
       Swal.fire({ icon: "warning", title: "제목 미입력", text: "자동완성할 동화책 제목을 입력해주세요.", confirmButtonColor: "#c7a8ff" });
       return;
     }
+
     setIsAutocompleting(true);
     try {
-      const res = await fetch("/api/admin/books/generate/", {
+      const res = await fetch("/api/admin/books/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: titleToSearch }),
@@ -60,6 +95,7 @@ export default function Page() {
       const data = await res.json();
       setForm((prev) => ({
         ...prev,
+        title: prev.title || titleToSearch,
         author: data.author ?? prev.author,
         publisher: data.publisher ?? prev.publisher,
         description: data.description ?? prev.description,
@@ -77,10 +113,16 @@ export default function Page() {
 
   const handleSave = async () => {
     if (!editingBook) return;
-    if (!form.title.trim() || !form.author.trim() || !form.publisher.trim()) {
-      Swal.fire({ icon: "warning", title: "필수 항목 미입력", text: "제목, 저자, 출판사는 필수입니다.", confirmButtonColor: "#c7a8ff" });
+    if (!form.isbn.trim() || !form.title.trim() || !form.author.trim() || !form.publisher.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "필수 항목 미입력",
+        text: "ISBN, 제목, 저자, 출판사는 필수입니다.",
+        confirmButtonColor: "#c7a8ff",
+      });
       return;
     }
+
     setIsSaving(true);
     try {
       const payload: Partial<BookPayload> = {
@@ -89,17 +131,16 @@ export default function Page() {
         author: form.author.trim(),
         publisher: form.publisher.trim(),
         description: form.description.trim(),
+        content: form.content,
       };
       const updated = await adminBooksApi.update(editingBook.id, payload);
-      setBooks((prev) => prev.map((b) => (b.id === editingBook.id ? updated : b)));
+      const updatedBook = { ...updated, content: { content: form.content } };
+      setBooks((prev) => prev.map((book) => (book.id === editingBook.id ? updatedBook : book)));
       closeModal();
-      Swal.fire({ icon: "success", title: "수정되었습니다", confirmButtonColor: "#c7a8ff" });
+      Swal.fire({ icon: "success", title: "수정되었습니다.", confirmButtonColor: "#c7a8ff" });
     } catch (err) {
-      if (err instanceof ApiError) {
-        Swal.fire({ icon: "error", title: "저장 실패", text: "저장에 실패했습니다.", confirmButtonColor: "#c7a8ff" });
-      } else {
-        Swal.fire({ icon: "error", title: "네트워크 오류", text: "서버에 연결할 수 없습니다.", confirmButtonColor: "#c7a8ff" });
-      }
+      const message = err instanceof ApiError ? "저장에 실패했습니다. 입력값을 확인해 주세요." : "서버에 연결할 수 없습니다.";
+      Swal.fire({ icon: "error", title: "저장 실패", text: message, confirmButtonColor: "#c7a8ff" });
     } finally {
       setIsSaving(false);
     }
@@ -114,9 +155,7 @@ export default function Page() {
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
           <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">동화책 관리</h3>
-          <p className="mt-1.5 text-[13px] text-[#94859d]">
-            등록된 동화책 목록을 확인하고 새 동화책을 추가합니다.
-          </p>
+          <p className="mt-1.5 text-[13px] text-[#94859d]">등록된 도서 목록을 확인하고 필요한 도서 정보를 수정합니다.</p>
         </div>
         <Link
           href="/admin/books/new"
@@ -127,11 +166,20 @@ export default function Page() {
       </div>
 
       <section className="bg-white border border-[#eadcf0] rounded-3xl p-4 shadow-[0_10px_26px_rgba(180,140,205,0.13)]">
-        <h4 className="m-0 mb-3 text-[15px] text-[#72508c]">등록된 동화책 목록</h4>
-        {books.length === 0 ? (
-          <p className="text-[12px] text-[#94859d] text-center py-8">
-            등록된 동화책이 없습니다.
-          </p>
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h4 className="m-0 text-[15px] text-[#72508c]">등록된 동화책 목록</h4>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="제목, 저자, 출판사, ISBN 검색"
+            className="min-h-[34px] rounded-full border border-[#eadcf0] bg-[#fff9fc] px-3 text-[12px] text-[#74617a] outline-none focus:border-[#c7a8ff]"
+          />
+        </div>
+        {isLoading ? (
+          <p className="text-[12px] text-[#94859d] text-center py-8">도서 목록을 불러오는 중입니다.</p>
+        ) : books.length === 0 ? (
+          <p className="text-[12px] text-[#94859d] text-center py-8">등록된 동화책이 없습니다.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {books.map((book) => (
@@ -153,9 +201,7 @@ export default function Page() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white border border-[#eadcf0] rounded-3xl shadow-[0_24px_60px_rgba(130,90,160,0.22)] p-4">
             <h3 className="text-lg tracking-tight text-[#7d5ba6] m-0 mb-1">동화책 정보 수정</h3>
-            <p className="mt-1 mb-3 text-[12px] text-[#94859d]">
-              AI 자동완성 또는 직접 수정하세요.
-            </p>
+            <p className="mt-1 mb-3 text-[12px] text-[#94859d]">도서 API에 저장된 기본 정보와 본문을 수정합니다.</p>
 
             <div className={fieldWrapCls + " mb-3"}>
               <label className={labelCls}>제목으로 자동완성</label>
@@ -163,8 +209,10 @@ export default function Page() {
                 <input
                   type="text"
                   value={autocompleteTitle}
-                  onChange={(e) => setAutocompleteTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAutocomplete()}
+                  onChange={(event) => setAutocompleteTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void handleAutocomplete();
+                  }}
                   placeholder="동화책 제목을 입력하세요 (예: 백설공주, 어린왕자)"
                   className={inputCls + " flex-1"}
                 />
@@ -181,29 +229,38 @@ export default function Page() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={fieldWrapCls}>
-                <label className={labelCls}>ISBN</label>
-                <input type="text" value={form.isbn} onChange={(e) => updateField("isbn", e.target.value)} placeholder="예: 9788925557373" className={inputCls} />
+                <label className={labelCls}>ISBN *</label>
+                <input type="text" value={form.isbn} onChange={(event) => updateField("isbn", event.target.value)} className={inputCls} />
               </div>
               <div className={fieldWrapCls}>
                 <label className={labelCls}>제목 *</label>
-                <input type="text" value={form.title} onChange={(e) => updateField("title", e.target.value)} placeholder="동화책 제목" className={inputCls} />
+                <input type="text" value={form.title} onChange={(event) => updateField("title", event.target.value)} className={inputCls} />
               </div>
               <div className={fieldWrapCls}>
                 <label className={labelCls}>저자 *</label>
-                <input type="text" value={form.author} onChange={(e) => updateField("author", e.target.value)} placeholder="저자명" className={inputCls} />
+                <input type="text" value={form.author} onChange={(event) => updateField("author", event.target.value)} className={inputCls} />
               </div>
               <div className={fieldWrapCls}>
                 <label className={labelCls}>출판사 *</label>
-                <input type="text" value={form.publisher} onChange={(e) => updateField("publisher", e.target.value)} placeholder="출판사명" className={inputCls} />
+                <input type="text" value={form.publisher} onChange={(event) => updateField("publisher", event.target.value)} className={inputCls} />
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
                 <label className={labelCls}>줄거리</label>
                 <textarea
                   value={form.description}
-                  onChange={(e) => updateField("description", e.target.value)}
+                  onChange={(event) => updateField("description", event.target.value)}
                   placeholder="동화책의 줄거리를 입력하세요"
-                  rows={4}
-                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-none focus:border-[#c7a8ff]"
+                  rows={12}
+                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
+                />
+              </div>
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>본문</label>
+                <textarea
+                  value={form.content}
+                  onChange={(event) => updateField("content", event.target.value)}
+                  rows={5}
+                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
                 />
               </div>
             </div>

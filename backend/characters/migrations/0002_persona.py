@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                             "book",
                             models.ForeignKey(
                                 db_column="book_id",
-                                on_delete=django.db.models.deletion.CASCADE,
+                                on_delete=django.db.models.deletion.DO_NOTHING,
                                 related_name="personas",
                                 to="books.book",
                             ),
@@ -65,7 +65,7 @@ class Migration(migrations.Migration):
                             "character",
                             models.ForeignKey(
                                 db_column="character_id",
-                                on_delete=django.db.models.deletion.CASCADE,
+                                on_delete=django.db.models.deletion.DO_NOTHING,
                                 related_name="personas",
                                 to="characters.character",
                             ),
