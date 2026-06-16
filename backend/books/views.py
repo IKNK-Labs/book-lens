@@ -17,7 +17,8 @@ _GENERATE_PROMPT = """동화책 제목이 주어지면 아래 JSON 형식으로�
 {{
   "author": "원작자 이름",
   "publisher": "대표 출판사 이름",
-  "description": "줄거리 요약 (500자~1000자, 한국어)"
+  "description": "줄거리 요약 (200자 이내, 한국어)",
+  "content": "동화 본문 (아이 친화적 문체, 500자~1000자, 한국어)"
 }}
 
 동화책 제목: "{title}"
@@ -46,7 +47,7 @@ class BookGenerateView(APIView):
             contents=_GENERATE_PROMPT.format(title=title),
             config=types.GenerateContentConfig(
                 temperature=0.3,
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 response_mime_type="application/json", # 강제로 JSON만 출력하게 하기
             ),
         )
@@ -71,6 +72,7 @@ class BookGenerateView(APIView):
             "author": data.get("author", ""),
             "publisher": data.get("publisher", ""),
             "description": data.get("description", ""),
+            "content": data.get("content", ""),
         })
 
 

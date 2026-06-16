@@ -289,7 +289,7 @@ export default function Page() {
               value={form.description}
               onChange={(e) => updateField("description", e.target.value)}
               placeholder="동화책의 줄거리를 입력하세요"
-              rows={12}
+              rows={6}
               className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
             />
           </div>

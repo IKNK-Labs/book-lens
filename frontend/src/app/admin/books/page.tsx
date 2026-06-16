@@ -12,12 +12,13 @@ type BookForm = {
   author: string;
   publisher: string;
   description: string;
+  content: string;
 };
 
 export default function Page() {
   const [books, setBooks] = useState<BookResponse[]>([]);
   const [editingBook, setEditingBook] = useState<BookResponse | null>(null);
-  const [form, setForm] = useState<BookForm>({ isbn: "", title: "", author: "", publisher: "", description: "" });
+  const [form, setForm] = useState<BookForm>({ isbn: "", title: "", author: "", publisher: "", description: "", content: "" });
   const [autocompleteTitle, setAutocompleteTitle] = useState("");
   const [isAutocompleting, setIsAutocompleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,6 +35,7 @@ export default function Page() {
       author: book.author,
       publisher: book.publisher,
       description: book.description ?? "",
+      content: book.content?.content ?? "",
     });
     setAutocompleteTitle("");
   };
@@ -48,7 +50,7 @@ export default function Page() {
     }
     setIsAutocompleting(true);
     try {
-      const res = await fetch("/api/admin/books/generate/", {
+      const res = await fetch("/api/admin/books/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: titleToSearch }),
@@ -60,9 +62,10 @@ export default function Page() {
       const data = await res.json();
       setForm((prev) => ({
         ...prev,
-        author: data.author ?? prev.author,
-        publisher: data.publisher ?? prev.publisher,
-        description: data.description ?? prev.description,
+        author: data.author || prev.author,
+        publisher: data.publisher || prev.publisher,
+        description: data.description || prev.description,
+        content: data.content || prev.content,
       }));
     } catch (err) {
       Swal.fire({ icon: "error", title: "자동완성 실패", text: err instanceof Error ? err.message : "서버에 연결할 수 없습니다.", confirmButtonColor: "#c7a8ff" });
@@ -89,6 +92,7 @@ export default function Page() {
         author: form.author.trim(),
         publisher: form.publisher.trim(),
         description: form.description.trim(),
+        ...(form.content.trim() && { content: { content: form.content.trim() } }),
       };
       const updated = await adminBooksApi.update(editingBook.id, payload);
       setBooks((prev) => prev.map((b) => (b.id === editingBook.id ? updated : b)));
@@ -108,6 +112,7 @@ export default function Page() {
   const inputCls = "w-full min-h-[34px] bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-1.5 outline-none focus:border-[#c7a8ff]";
   const fieldWrapCls = "bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5";
   const labelCls = "block text-[10px] font-bold text-[#9b74ad] mb-1.5";
+  const textareaCls = "w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]";
 
   return (
     <div>
@@ -197,13 +202,23 @@ export default function Page() {
                 <input type="text" value={form.publisher} onChange={(e) => updateField("publisher", e.target.value)} placeholder="출판사명" className={inputCls} />
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
-                <label className={labelCls}>줄거리</label>
+                <label className={labelCls}>줄거리 (200자 이내)</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => updateField("description", e.target.value)}
                   placeholder="동화책의 줄거리를 입력하세요"
-                  rows={12}
-                  className="w-full bg-white border border-[#eadcf0] rounded-xl text-[12px] text-[#74617a] px-2.5 py-2 outline-none resize-y focus:border-[#c7a8ff]"
+                  rows={6}
+                  className={textareaCls}
+                />
+              </div>
+              <div className={fieldWrapCls + " sm:col-span-2"}>
+                <label className={labelCls}>본문 (500~1000자)</label>
+                <textarea
+                  value={form.content}
+                  onChange={(e) => updateField("content", e.target.value)}
+                  placeholder="동화 본문을 입력하세요 (AI 자동완성으로 채울 수 있습니다)"
+                  rows={18}
+                  className={textareaCls}
                 />
               </div>
             </div>

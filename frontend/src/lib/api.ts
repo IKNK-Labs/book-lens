@@ -66,6 +66,7 @@ export type BookPayload = {
   author: string;
   publisher: string;
   description: string;
+  content?: { content: string };
 };
 
 export type BookResponse = BookPayload & {
