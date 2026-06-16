@@ -35,7 +35,11 @@ function compactInfoItems(items: Array<BookInfoItem | null>) {
   return items.filter((item): item is BookInfoItem => Boolean(item?.value.trim()));
 }
 
-function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
+function withQuery(path: string, queryString: string) {
+  return queryString ? `${path}?${queryString}` : path;
+}
+
+function toDetailViewModelFromApiBook(book: BookResponse, queryString: string): BookDetailViewModel {
   const description = book.description || "등록된 소개가 없습니다.";
   const content = book.content?.content;
 
@@ -47,8 +51,8 @@ function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
     genres: ["도서"],
     characterCount: book.character_count ?? 0,
     recommendedFor: "등록된 도서 상세를 확인해 보세요.",
-    storyHref: `/story/${book.id}`,
-    chatHref: book.featured_character_id ? `/chat/${book.featured_character_id}` : undefined,
+    storyHref: withQuery(`/story/${book.id}`, queryString),
+    chatHref: book.featured_character_id ? withQuery(`/chat/${book.featured_character_id}`, queryString) : undefined,
     content: content || undefined,
     infoItems: compactInfoItems([
       { label: "저자", value: book.author },
@@ -58,7 +62,7 @@ function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
   };
 }
 
-function toDetailViewModelFromMockBook(book: Book): BookDetailViewModel {
+function toDetailViewModelFromMockBook(book: Book, queryString: string): BookDetailViewModel {
   return {
     id: book.id,
     title: book.title,
@@ -67,8 +71,8 @@ function toDetailViewModelFromMockBook(book: Book): BookDetailViewModel {
     genres: book.genres?.length ? book.genres : ["도서"],
     characterCount: book.characterCount ?? 0,
     recommendedFor: book.recommendedFor || "이야기를 살펴보고 캐릭터와 대화를 이어가 보세요.",
-    storyHref: `/story/${book.id}`,
-    chatHref: book.featuredCharacterId ? `/chat/${book.featuredCharacterId}` : undefined,
+    storyHref: withQuery(`/story/${book.id}`, queryString),
+    chatHref: book.featuredCharacterId ? withQuery(`/chat/${book.featuredCharacterId}`, queryString) : undefined,
     content: book.summary || undefined,
     infoItems: compactInfoItems([
       { label: "추천", value: book.label },
@@ -90,11 +94,13 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
       setError("");
       setBook(null);
 
+      const queryString = window.location.search.slice(1);
+
       if (!isPositiveIntegerId(bookId)) {
         const fallbackBook = mockBooks.find((item) => item.id === bookId);
         if (isCurrent) {
           if (fallbackBook) {
-            setBook(toDetailViewModelFromMockBook(fallbackBook));
+            setBook(toDetailViewModelFromMockBook(fallbackBook, queryString));
           } else {
             setError("도서 정보를 찾을 수 없습니다.");
           }
@@ -105,7 +111,7 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
 
       try {
         const item = await booksApi.detail(Number(bookId));
-        if (isCurrent) setBook(toDetailViewModelFromApiBook(item));
+        if (isCurrent) setBook(toDetailViewModelFromApiBook(item, queryString));
       } catch (err) {
         if (!isCurrent) return;
         if (err instanceof ApiError && err.status === 404) {
