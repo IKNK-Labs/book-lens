@@ -4,11 +4,14 @@ import re
 
 from google import genai
 from google.genai import types
+from django.db.models import Count, OuterRef, Subquery
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+
+from characters.models import Character
 
 from .models import Book, BookContent
 from .serializers import BookContentSerializer, BookSerializer
@@ -75,16 +78,26 @@ class BookGenerateView(APIView):
         })
 
 
+def get_book_queryset():
+    first_character = Character.objects.filter(book_id=OuterRef("pk")).order_by("id")
+    return Book.objects.select_related("content").annotate(
+        character_count=Count("characters", distinct=True),
+        first_character_id=Subquery(first_character.values("id")[:1]),
+    )
+
+
 class BookAdminViewSet(ModelViewSet):
     """관리자용 - 목록/등록/수정/삭제
     TODO: 백엔드 인증 구현 후 AllowAny → IsAdminUser 로 교체
     """
-    queryset = Book.objects.select_related("content").all()
     serializer_class = BookSerializer
     permission_classes = [AllowAny]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     filter_backends = [SearchFilter]
     search_fields = ["title", "author", "publisher", "isbn", "description"]
+
+    def get_queryset(self):
+        return get_book_queryset()
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -111,8 +124,10 @@ class BookAdminViewSet(ModelViewSet):
 
 class BookViewSet(ReadOnlyModelViewSet):
     """사용자용 - 목록/상세 조회"""
-    queryset = Book.objects.select_related("content").all()
     serializer_class = BookSerializer
     permission_classes = [AllowAny]
     filter_backends = [SearchFilter]
     search_fields = ["title", "author", "publisher", "isbn", "description"]
+
+    def get_queryset(self):
+        return get_book_queryset()

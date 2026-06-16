@@ -21,8 +21,10 @@ type BookDetailViewModel = {
   genres: string[];
   characterCount: number;
   recommendedFor: string;
-  storyHref: string;
+  storyHref?: string;
   chatHref?: string;
+  storyUnavailableMessage?: string;
+  chatUnavailableMessage?: string;
   content?: string;
   infoItems: BookInfoItem[];
 };
@@ -39,7 +41,7 @@ function withQuery(path: string, queryString: string) {
   return queryString ? `${path}?${queryString}` : path;
 }
 
-function toDetailViewModelFromApiBook(book: BookResponse, queryString: string): BookDetailViewModel {
+function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
   const description = book.description || "등록된 소개가 없습니다.";
   const content = book.content?.content;
 
@@ -51,13 +53,13 @@ function toDetailViewModelFromApiBook(book: BookResponse, queryString: string): 
     genres: ["도서"],
     characterCount: book.character_count ?? 0,
     recommendedFor: "등록된 도서 상세를 확인해 보세요.",
-    storyHref: withQuery(`/story/${book.id}`, queryString),
-    chatHref: book.featured_character_id ? withQuery(`/chat/${book.featured_character_id}`, queryString) : undefined,
+    storyUnavailableMessage: "동화 구연은 샘플 도서에서 준비 중입니다.",
+    chatUnavailableMessage: "캐릭터 대화는 샘플 도서에서 준비 중입니다.",
     content: content || undefined,
     infoItems: compactInfoItems([
       { label: "저자", value: book.author },
       { label: "출판사", value: book.publisher },
-      { label: "ISBN", value: book.isbn },
+      { label: "ISBN", value: book.isbn ?? "" },
     ]),
   };
 }
@@ -111,7 +113,7 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
 
       try {
         const item = await booksApi.detail(Number(bookId));
-        if (isCurrent) setBook(toDetailViewModelFromApiBook(item, queryString));
+        if (isCurrent) setBook(toDetailViewModelFromApiBook(item));
       } catch (err) {
         if (!isCurrent) return;
         if (err instanceof ApiError && err.status === 404) {
@@ -188,12 +190,18 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
           <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
             {book.recommendedFor}
           </p>
-          <Link
-            href={book.storyHref}
-            className="mt-5 block rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white"
-          >
-            동화 구연 시작하기
-          </Link>
+          {book.storyHref ? (
+            <Link
+              href={book.storyHref}
+              className="mt-5 block rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white"
+            >
+              동화 구연 시작하기
+            </Link>
+          ) : (
+            <p className="mt-5 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
+              {book.storyUnavailableMessage}
+            </p>
+          )}
           {book.chatHref ? (
             <Link
               href={book.chatHref}
@@ -203,7 +211,11 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
             </Link>
           ) : (
             <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
-              대화 가능한 캐릭터가 등록되면 캐릭터 대화가 열립니다.
+              {book.chatUnavailableMessage ?? (
+                <>
+                  대화 가능한 캐릭터가 등록되면 캐릭터 대화가 열립니다.
+                </>
+              )}
             </p>
           )}
         </Card>
