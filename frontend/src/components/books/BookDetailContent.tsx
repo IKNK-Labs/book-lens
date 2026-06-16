@@ -57,7 +57,7 @@ function toDetailViewModelFromApiBook(book: BookResponse, queryString: string): 
     infoItems: compactInfoItems([
       { label: "저자", value: book.author },
       { label: "출판사", value: book.publisher },
-      { label: "ISBN", value: book.isbn },
+      { label: "ISBN", value: book.isbn ?? "" },
     ]),
   };
 }
