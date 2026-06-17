@@ -134,6 +134,21 @@ export type BookResponse = Omit<BookPayload, "content"> & {
   featured_character_id: number | null;
 };
 
+export type BookVectorSearchResult = {
+  book_id: number;
+  title: string;
+  author: string;
+  publisher: string;
+  chunk_id: number;
+  chunk_index: number;
+  content: string;
+  distance: number;
+};
+
+export type BookVectorSearchResponse = {
+  results: BookVectorSearchResult[];
+};
+
 export const adminBooksApi = {
   create: (payload: BookPayload) =>
     request<BookResponse>("/api/admin/books", {
@@ -159,4 +174,10 @@ export const booksApi = {
   list: (search?: string) => request<BookResponse[]>(withSearch("/api/books", search)),
 
   detail: (id: number) => request<BookResponse>(`/api/books/${id}`),
+
+  vectorSearch: (query: string, limit = 10) =>
+    request<BookVectorSearchResponse>("/api/books/vector-search", {
+      method: "POST",
+      body: JSON.stringify({ query, limit }),
+    }),
 };

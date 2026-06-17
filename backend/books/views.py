@@ -14,7 +14,13 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from characters.models import Character
 
 from .models import Book, BookContent
-from .serializers import BookContentSerializer, BookSerializer
+from .search import VectorSearchError, search_book_content_chunks
+from .serializers import (
+    BookContentSerializer,
+    BookSerializer,
+    BookVectorSearchRequestSerializer,
+    BookVectorSearchResultSerializer,
+)
 
 _GENERATE_PROMPT = """동화책 제목이 주어지면 아래 JSON 형식으로만 응답하세요. 다른 설명은 쓰지 마세요.
 
@@ -142,3 +148,42 @@ class BookViewSet(ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return get_book_queryset()
+
+
+class BookVectorSearchView(APIView):
+    """POST /api/books/vector-search - search book content chunks with pgvector."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        request_serializer = BookVectorSearchRequestSerializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+
+        query = request_serializer.validated_data["query"]
+        limit = request_serializer.validated_data["limit"]
+
+        try:
+            results = search_book_content_chunks(query, limit=limit)
+        except VectorSearchError as exc:
+            return Response({"error": str(exc)}, status=400)
+
+        response_serializer = BookVectorSearchResultSerializer(
+            [_serialize_vector_result(result) for result in results],
+            many=True,
+        )
+        return Response({"results": response_serializer.data})
+
+
+def _serialize_vector_result(result):
+    chunk = result.chunk
+    book = chunk.book_content.book
+    return {
+        "book_id": book.id,
+        "title": book.title,
+        "author": book.author,
+        "publisher": book.publisher,
+        "chunk_id": chunk.id,
+        "chunk_index": chunk.chunk_index,
+        "content": chunk.content,
+        "distance": result.distance,
+    }
