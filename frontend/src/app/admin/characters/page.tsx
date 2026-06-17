@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import CharacterCard from "@/components/admin/CharacterCard";
-import { mockPersonas } from "@/data/mock";
 import {
   adminBooksApi,
   adminCharactersApi,
@@ -60,27 +59,6 @@ const EMPTY_PERSONA_FORM: PersonaForm = {
   approvalStatus: "draft",
 };
 
-
-function getPersonaFormFromMock(characterId: number): PersonaForm {
-  const p = mockPersonas.find((m) => m.characterId === String(characterId));
-  if (!p) return EMPTY_PERSONA_FORM;
-  return {
-    personality: p.personality,
-    speechStyle: p.speechStyle,
-    catchphrase: p.catchphrase,
-    greetingStart: p.greetingStart,
-    greetingEnd: p.greetingEnd,
-    introduction: p.introduction,
-    tags: p.tags.join(", "),
-    startingSituation: p.startingSituation,
-    historicalBackground: p.historicalBackground,
-    backgroundDescription: p.backgroundDescription,
-    userRole: p.userRole,
-    userRelationship: p.userRelationship,
-    systemPrompt: p.systemPrompt,
-    approvalStatus: p.approvalStatus,
-  };
-}
 
 function getPersonaFormFromResponse(persona: PersonaResponse): PersonaForm {
   return {
@@ -149,6 +127,7 @@ export default function Page() {
   const [personasByCharacterId, setPersonasByCharacterId] = useState<Record<number, PersonaResponse>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isCharacterAutocompleting, setIsCharacterAutocompleting] = useState(false);
+  const [isPersonaAutocompleting, setIsPersonaAutocompleting] = useState(false);
 
   // character modal
   const [isCharacterModalOpen, setIsCharacterModalOpen] = useState(false);
@@ -335,9 +314,63 @@ export default function Page() {
     setIsPersonaModalOpen(true);
   };
 
-  const handlePersonaAutocomplete = () => {
-    if (!selectedCharacterId) return;
-    setPersonaForm(getPersonaFormFromMock(selectedCharacterId));
+  const handlePersonaAutocomplete = async () => {
+    if (!selectedBook || !selectedCharacter) return;
+
+    const characterName = personaLlmInput.trim() || selectedCharacter.name;
+    if (!characterName) {
+      Swal.fire({
+        icon: "warning",
+        title: "캐릭터명 미입력",
+        text: "자동완성할 캐릭터 이름을 입력해주세요.",
+        confirmButtonColor: "#c7a8ff",
+      });
+      return;
+    }
+
+    setIsPersonaAutocompleting(true);
+    try {
+      const res = await fetch("/api/admin/personas/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          book_title: selectedBook.title,
+          character_name: characterName,
+          character_role: selectedCharacter.role ?? "",
+          character_description: selectedCharacter.description ?? "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "자동완성에 실패했습니다.");
+      }
+
+      setPersonaForm({
+        personality: data.personality ?? "",
+        speechStyle: data.speech_style ?? "",
+        catchphrase: data.catchphrase ?? "",
+        greetingStart: data.greeting_open ?? "",
+        greetingEnd: data.greeting_close ?? "",
+        introduction: data.bio ?? "",
+        tags: Array.isArray(data.tags) ? data.tags.join(", ") : "",
+        startingSituation: data.opening_scene ?? "",
+        historicalBackground: data.era ?? "",
+        backgroundDescription: data.background ?? "",
+        userRole: data.user_role ?? "",
+        userRelationship: data.user_relationship ?? "",
+        systemPrompt: data.system_prompt ?? "",
+        approvalStatus: data.approved_status ?? "draft",
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "자동완성 실패",
+        text: err instanceof Error ? err.message : "서버에 연결할 수 없습니다.",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } finally {
+      setIsPersonaAutocompleting(false);
+    }
   };
 
   const updatePersonaField = (field: keyof PersonaForm, value: string) => {
@@ -756,9 +789,10 @@ export default function Page() {
                 <button
                   type="button"
                   onClick={handlePersonaAutocomplete}
-                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap"
+                  disabled={isPersonaAutocompleting}
+                  className="rounded-full px-4 py-1.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] whitespace-nowrap disabled:opacity-60"
                 >
-                  자동완성
+                  {isPersonaAutocompleting ? "생성 중..." : "자동완성"}
                 </button>
               </div>
             </div>
