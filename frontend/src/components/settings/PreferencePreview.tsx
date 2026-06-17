@@ -1,13 +1,20 @@
 import { Card } from "../ui/Card";
+import type { UserPreference } from "../../lib/settings/preferences";
 
-export function PreferencePreview() {
+type PreferencePreviewProps = {
+  preference: UserPreference;
+};
+
+export function PreferencePreview({ preference }: PreferencePreviewProps) {
   return (
     <Card className="bg-[var(--surface-soft)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">Preview</p>
           <h2 className="mt-2 text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">설정 적용 미리보기</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">설정값에 따라 캐릭터 답변의 길이와 설명 방식이 어떻게 달라지는지 미리 볼 수 있어요.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {preference.ageGroup} 대상에게 {preference.difficultyLevel} 수준으로, {preference.responseLength} 답변을 우선합니다.
+          </p>
         </div>
       </div>
       <div className="mt-5 grid gap-3">
