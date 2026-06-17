@@ -155,9 +155,7 @@ export async function getSettingsPageData(
   const viewer = buildSupabaseViewer(userData.user, appUser);
   const { data: preferenceRows, error: preferenceError } = await supabase
     .from("user_preference")
-    .select(
-      "id, age_group, difficulty_level, response_length, instruction, explanation_style, interests",
-    )
+    .select("id, age_group, difficulty_level, response_length, instruction")
     .eq("user_id", appUser.id)
     .limit(2);
 

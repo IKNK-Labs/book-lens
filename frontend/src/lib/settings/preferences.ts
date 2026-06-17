@@ -45,8 +45,6 @@ export type UserPreferenceRow = {
   age_group: string | null;
   difficulty_level: string | null;
   response_length: string | null;
-  explanation_style: string | null;
-  interests: unknown;
   instruction: string | null;
 };
 
@@ -66,17 +64,6 @@ export const DEFAULT_USER_PREFERENCE: UserPreference = {
 
 function pickAllowed(value: unknown, options: string[], fallback: string) {
   return typeof value === "string" && options.includes(value) ? value : fallback;
-}
-
-function normalizeInterests(value: unknown) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter(
-    (interest): interest is string =>
-      typeof interest === "string" && INTEREST_OPTIONS.includes(interest),
-  );
 }
 
 function readText(value: unknown) {
@@ -102,12 +89,8 @@ export function normalizePreferenceRow(
       RESPONSE_LENGTHS,
       DEFAULT_USER_PREFERENCE.responseLength,
     ),
-    explanationStyle: pickAllowed(
-      row?.explanation_style,
-      EXPLANATION_STYLES,
-      DEFAULT_USER_PREFERENCE.explanationStyle,
-    ),
-    interests: normalizeInterests(row?.interests),
+    explanationStyle: DEFAULT_USER_PREFERENCE.explanationStyle,
+    interests: DEFAULT_USER_PREFERENCE.interests,
     instruction: readText(row?.instruction),
   };
 }
@@ -152,8 +135,6 @@ export function toPreferencePayload(preference: UserPreference) {
     age_group: preference.ageGroup,
     difficulty_level: preference.difficultyLevel,
     response_length: preference.responseLength,
-    explanation_style: preference.explanationStyle,
-    interests: preference.interests,
     instruction: preference.instruction,
   };
 }
