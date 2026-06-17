@@ -23,7 +23,51 @@ rad.json
 TestResults.xml
 
 .env
+.env.local
 node_modules/
 
 __pycache__/
 *.pyc
+# Local AI agent artifacts
+/w-context
+MEMORY.local.md
+.memory/
+.codex-memory/
+.ai-local/
+CLAUDE.local.md
+# Local AI/test integration tooling artifacts
+.newman/
+newman/
+.postman/
+postman/
+Postman/
+.postman-cli/
+postman-cli/
+.postman-mcp/
+postman-mcp/
+*.postman_collection.json
+*.postman_environment.json
+.mcp.json
+mcp.json
+.mcp/
+.playwright/
+.playwright-cli/
+playwright-cli/
+.playwright-mcp/
+playwright-mcp/
+playwright-report/
+playwright-results/
+test-results/
+playwright/.auth/
+storageState*.json
+*.storageState.json
+.chromium/
+.chrome/
+.webkit/
+.supabase/
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/.env.local
+
+*.lock
