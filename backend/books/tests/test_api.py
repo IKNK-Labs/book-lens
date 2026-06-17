@@ -1,9 +1,11 @@
+"""Tests for book list, detail, admin CRUD, and text search APIs."""
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from characters.models import Character, Persona
 
-from .models import Book, BookContent
+from books.models import Book, BookContent
 
 
 class BookApiTests(APITestCase):
