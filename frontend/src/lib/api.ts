@@ -117,6 +117,45 @@ export const adminPersonasApi = {
     request<void>(`/api/admin/personas/${id}`, { method: "DELETE" }),
 };
 
+export type ForbiddenRuleType = "word" | "phrase" | "regex";
+export type ForbiddenRuleSeverity = "block" | "warn" | "info";
+export type ForbiddenRuleTarget = "user_input" | "bot_output" | "both";
+
+export type ForbiddenRulePayload = {
+  pattern: string;
+  rule_type: ForbiddenRuleType;
+  description?: string | null;
+  severity: ForbiddenRuleSeverity;
+  target: ForbiddenRuleTarget;
+  category?: string | null;
+  is_active: boolean;
+};
+
+export type ForbiddenRuleResponse = ForbiddenRulePayload & {
+  id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export const adminForbiddenRulesApi = {
+  list: () => request<ForbiddenRuleResponse[]>("/api/admin/forbidden-rules"),
+
+  create: (payload: ForbiddenRulePayload) =>
+    request<ForbiddenRuleResponse>("/api/admin/forbidden-rules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  update: (id: string, payload: Partial<ForbiddenRulePayload>) =>
+    request<ForbiddenRuleResponse>(`/api/admin/forbidden-rules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/admin/forbidden-rules/${id}`, { method: "DELETE" }),
+};
+
 export type BookPayload = {
   isbn: string | null;
   title: string;
@@ -132,6 +171,21 @@ export type BookResponse = Omit<BookPayload, "content"> & {
   content: { content: string } | null;
   character_count: number;
   featured_character_id: number | null;
+};
+
+export type BookVectorSearchResult = {
+  book_id: number;
+  title: string;
+  author: string;
+  publisher: string;
+  chunk_id: number;
+  chunk_index: number;
+  content: string;
+  distance: number;
+};
+
+export type BookVectorSearchResponse = {
+  results: BookVectorSearchResult[];
 };
 
 export const adminBooksApi = {
@@ -159,4 +213,10 @@ export const booksApi = {
   list: (search?: string) => request<BookResponse[]>(withSearch("/api/books", search)),
 
   detail: (id: number) => request<BookResponse>(`/api/books/${id}`),
+
+  vectorSearch: (query: string, limit = 10) =>
+    request<BookVectorSearchResponse>("/api/books/vector-search", {
+      method: "POST",
+      body: JSON.stringify({ query, limit }),
+    }),
 };

@@ -7,6 +7,7 @@ const MENU_ITEMS = [
   { href: "/admin", label: "📊 대시보드" },
   { href: "/admin/books", label: "📚 동화책 관리" },
   { href: "/admin/characters", label: "👥 캐릭터 관리" },
+  { href: "/admin/forbidden-rules", label: "🚫 금지어 관리" },
   { href: "/admin/test-chat", label: "💬 테스트 채팅" },
 ];
 
