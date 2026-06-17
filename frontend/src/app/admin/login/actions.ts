@@ -2,6 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getMissingSupabaseConfigMessage,
+  hasSupabaseConfig,
+} from "@/lib/supabase/env";
 
 function getFormValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -18,6 +22,10 @@ export async function adminLogin(formData: FormData) {
 
   if (!email || !password) {
     redirectWithError("이메일과 비밀번호를 입력해 주세요.");
+  }
+
+  if (!hasSupabaseConfig()) {
+    redirectWithError(getMissingSupabaseConfigMessage());
   }
 
   const supabase = await createClient();

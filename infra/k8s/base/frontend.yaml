@@ -33,6 +33,18 @@ spec:
               value: http://django:8000
             - name: NEXT_PUBLIC_API_BASE_URL
               value: /api
+            - name: NEXT_PUBLIC_SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: frontend-env
+                  key: NEXT_PUBLIC_SUPABASE_URL
+                  optional: true
+            - name: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: frontend-env
+                  key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+                  optional: true
           readinessProbe:
             tcpSocket:
               port: 3000

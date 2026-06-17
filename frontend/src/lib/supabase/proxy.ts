@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { asSessionCookie } from "./cookies";
+import {
+  getMissingSupabaseConfigMessage,
+  getSupabaseConfig,
+} from "./env";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
 const USER_PROTECTED_PATHS = ["/books", "/settings", "/chat"];
@@ -46,10 +50,34 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
+  const pathname = request.nextUrl.pathname;
+  const supabaseConfig = getSupabaseConfig();
+
+  if (!supabaseConfig) {
+    if (
+      process.env.NODE_ENV !== "production" &&
+      isUserProtectedRoute(pathname) &&
+      request.nextUrl.searchParams.get("auth") === "member"
+    ) {
+      return supabaseResponse;
+    }
+
+    if (isUserProtectedRoute(pathname) || isAdminRoute(pathname)) {
+      const loginUrl = new URL(
+        isAdminRoute(pathname) ? ADMIN_LOGIN_PATH : "/login",
+        request.url,
+      );
+      loginUrl.searchParams.set("error", getMissingSupabaseConfigMessage());
+
+      return redirectWithCookies(supabaseResponse, loginUrl);
+    }
+
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseConfig.url,
+    supabaseConfig.publishableKey,
     {
       cookies: {
         getAll() {
@@ -77,7 +105,6 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data: claimsData } = await supabase.auth.getClaims();
-  const pathname = request.nextUrl.pathname;
   const userId = claimsData?.claims.sub;
 
   if (isUserProtectedRoute(pathname)) {
