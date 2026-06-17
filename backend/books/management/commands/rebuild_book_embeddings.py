@@ -1,7 +1,10 @@
-"""Development utility to manually rebuild BGE-M3 embeddings.
+"""Temporary development utility to manually rebuild BGE-M3 embeddings.
 
 This command is intended for local testing and one-off backfills before the
 embedding pipeline is connected to an automated background job.
+
+TODO: Remove this command after book registration triggers automated embedding
+creation through a background pipeline.
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -11,7 +14,10 @@ from books.services import rebuild_book_content_chunks
 
 
 class Command(BaseCommand):
-    help = "Development utility: manually rebuild pgvector embeddings for book content records."
+    help = (
+        "Temporary development/backfill utility: manually rebuild pgvector "
+        "embeddings for book content records."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(

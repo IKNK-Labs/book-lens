@@ -1,4 +1,8 @@
-"""Tests for the development-only rebuild_book_embeddings command."""
+"""Tests for the temporary rebuild_book_embeddings development command.
+
+TODO: Remove with rebuild_book_embeddings after automated embedding creation is
+connected to book registration or a background pipeline.
+"""
 
 from io import StringIO
 from unittest.mock import patch
