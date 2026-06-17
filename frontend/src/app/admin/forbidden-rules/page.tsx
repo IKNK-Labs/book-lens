@@ -38,6 +38,15 @@ const CATEGORY_OPTIONS = [
   { value: "self_harm", label: "자해/위험 행동" },
 ];
 
+const CUSTOM_CATEGORY_VALUE = "__custom__";
+const CATEGORY_SELECT_OPTIONS = [
+  ...CATEGORY_OPTIONS,
+  { value: CUSTOM_CATEGORY_VALUE, label: "직접입력" },
+];
+const PRESET_CATEGORY_VALUES = CATEGORY_OPTIONS
+  .map((option) => option.value)
+  .filter(Boolean);
+
 const EMPTY_FORM: ForbiddenRulePayload = {
   pattern: "",
   rule_type: "word",
@@ -67,8 +76,17 @@ function cleanPayload(payload: ForbiddenRulePayload): ForbiddenRulePayload {
     ...payload,
     pattern: payload.pattern.trim(),
     description: payload.description?.trim() || null,
-    category: category || null,
+    category: category && category !== CUSTOM_CATEGORY_VALUE ? category : null,
   };
+}
+
+function getCategorySelectValue(category?: string | null) {
+  if (!category) return "";
+  return PRESET_CATEGORY_VALUES.includes(category) ? category : CUSTOM_CATEGORY_VALUE;
+}
+
+function shouldShowCustomCategory(category?: string | null) {
+  return Boolean(category && getCategorySelectValue(category) === CUSTOM_CATEGORY_VALUE);
 }
 
 function formatDate(value: string) {
@@ -279,14 +297,6 @@ export default function ForbiddenRulesPage() {
 
   return (
     <div>
-      <datalist id="forbidden-rule-category-options">
-        {CATEGORY_OPTIONS.map((option) => (
-          <option key={option.value || "none"} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </datalist>
-
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
           <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">금지어 관리</h3>
@@ -373,14 +383,26 @@ export default function ForbiddenRulesPage() {
           </div>
           <div className="lg:col-span-2">
             <label className={labelCls}>카테고리</label>
-            <input
-              type="text"
-              list="forbidden-rule-category-options"
-              value={newRule.category ?? ""}
+            <select
+              value={getCategorySelectValue(newRule.category)}
               onChange={(event) => updateNewRule("category", event.target.value)}
-              placeholder="예: violence"
               className={inputCls}
-            />
+            >
+              {CATEGORY_SELECT_OPTIONS.map((option) => (
+                <option key={option.value || "none"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {shouldShowCustomCategory(newRule.category) && (
+              <input
+                type="text"
+                value={newRule.category === CUSTOM_CATEGORY_VALUE ? "" : newRule.category ?? ""}
+                onChange={(event) => updateNewRule("category", event.target.value)}
+                placeholder="직접 입력"
+                className={inputCls + " mt-2"}
+              />
+            )}
           </div>
           <div className="lg:col-span-1">
             <label className={labelCls}>활성</label>
@@ -513,15 +535,30 @@ export default function ForbiddenRulesPage() {
                     </div>
                     <div className="lg:col-span-2">
                       <label className={labelCls}>카테고리</label>
-                      <input
-                        type="text"
-                        list="forbidden-rule-category-options"
-                        value={draft.category ?? ""}
+                      <select
+                        value={getCategorySelectValue(draft.category)}
                         onChange={(event) =>
                           updateDraft(rule.id, rule, "category", event.target.value)
                         }
                         className={inputCls}
-                      />
+                      >
+                        {CATEGORY_SELECT_OPTIONS.map((option) => (
+                          <option key={option.value || "none"} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      {shouldShowCustomCategory(draft.category) && (
+                        <input
+                          type="text"
+                          value={draft.category === CUSTOM_CATEGORY_VALUE ? "" : draft.category ?? ""}
+                          onChange={(event) =>
+                            updateDraft(rule.id, rule, "category", event.target.value)
+                          }
+                          placeholder="직접 입력"
+                          className={inputCls + " mt-2"}
+                        />
+                      )}
                     </div>
                     <div className="lg:col-span-1">
                       <label className={labelCls}>활성</label>
