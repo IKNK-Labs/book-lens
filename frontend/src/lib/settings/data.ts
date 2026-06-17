@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import type { Viewer } from "../mockAuth";
-import { getViewer } from "../mockAuth";
+import { getGuestViewer, getViewer } from "../mockAuth";
 import { hasSupabaseConfig } from "../supabase/env";
 import { createClient } from "../supabase/server";
 import {
@@ -101,10 +101,8 @@ export async function getSettingsPageData(
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
   if (userError || !userData.user) {
-    const viewer = await getViewer(searchParams);
-
     return {
-      viewer,
+      viewer: getGuestViewer(),
       appUser: null,
       preference: DEFAULT_USER_PREFERENCE,
       canSavePreference: false,

@@ -5,8 +5,6 @@ import { saveUserPreference } from "../../app/settings/actions";
 import {
   AGE_GROUPS,
   DIFFICULTY_LEVELS,
-  EXPLANATION_STYLES,
-  INTEREST_OPTIONS,
   RESPONSE_LENGTHS,
   type PreferenceActionState,
   type UserPreference,
@@ -30,13 +28,11 @@ function OptionChip({
   value,
   defaultChecked,
   disabled,
-  multiple = false,
 }: {
   name: string;
   value: string;
   defaultChecked: boolean;
   disabled: boolean;
-  multiple?: boolean;
 }) {
   return (
     <label className={disabled ? "cursor-not-allowed" : "cursor-pointer"}>
@@ -45,7 +41,7 @@ function OptionChip({
         defaultChecked={defaultChecked}
         disabled={disabled}
         name={name}
-        type={multiple ? "checkbox" : "radio"}
+        type="radio"
         value={value}
       />
       <span className="inline-flex items-center rounded-full border border-[var(--line)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-extrabold text-[var(--accent-strong)] peer-checked:border-transparent peer-checked:bg-gradient-to-r peer-checked:from-[var(--pink)] peer-checked:to-[var(--violet)] peer-checked:text-white peer-disabled:opacity-60 sm:text-sm">
@@ -100,8 +96,8 @@ export function UserPreferenceForm({
   return (
     <form action={formAction} className="grid gap-5">
       <Card>
-        <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">대상 기준</h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">정확한 생년월일이 아니라, AI 응답을 맞출 대상 연령대를 선택합니다.</p>
+        <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">연령 기준</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">정확한 생년월일이 아니라 AI 응답을 맞출 대략적인 연령대를 선택합니다.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {AGE_GROUPS.map((age) => (
             <OptionChip
@@ -117,7 +113,7 @@ export function UserPreferenceForm({
 
       <Card>
         <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">응답 방식</h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">캐릭터의 말투와 성격은 유지하고, 설명 난이도와 길이만 조절합니다.</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">설명의 난이도와 응답 길이를 조절합니다.</p>
         <div className="mt-5 grid gap-4">
           <OptionGroup
             disabled={disabled}
@@ -134,44 +130,13 @@ export function UserPreferenceForm({
             value={preference.responseLength}
           />
         </div>
-        <div className="mt-5">
-          <p className="mb-2 text-sm font-black text-[var(--accent-strong)]">설명 방식</p>
-          <div className="flex flex-wrap gap-2">
-            {EXPLANATION_STYLES.map((style) => (
-              <OptionChip
-                key={style}
-                defaultChecked={style === preference.explanationStyle}
-                disabled={disabled}
-                name="explanation_style"
-                value={style}
-              />
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">관심 주제</h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">동화 추천이나 생성에 참고하는 값입니다. 캐릭터 페르소나보다 우선하지 않습니다.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {INTEREST_OPTIONS.map((interest) => (
-            <OptionChip
-              key={interest}
-              defaultChecked={preference.interests.includes(interest)}
-              disabled={disabled}
-              multiple
-              name="interests"
-              value={interest}
-            />
-          ))}
-        </div>
       </Card>
 
       <Card>
         <label className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]" htmlFor="preference-instruction">
           사용자 지시사항
         </label>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">캐릭터 페르소나, 원작 설정, 안전 규칙을 깨지 않는 범위에서만 반영됩니다.</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">캐릭터가 따라야 할 말투, 안전 규칙, 설명 방향을 적어주세요.</p>
         <textarea
           id="preference-instruction"
           rows={5}

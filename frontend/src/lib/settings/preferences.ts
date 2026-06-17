@@ -13,31 +13,11 @@ export const AGE_GROUPS = [
 
 export const DIFFICULTY_LEVELS = ["쉬움", "보통", "깊이 있게"];
 export const RESPONSE_LENGTHS = ["짧게", "보통", "자세히"];
-export const EXPLANATION_STYLES = [
-  "쉽게 설명",
-  "질문을 덧붙이기",
-  "교훈 포함",
-  "원작 중심",
-  "감정 중심",
-];
-export const INTEREST_OPTIONS = [
-  "모험",
-  "판타지",
-  "동물",
-  "우정",
-  "용기",
-  "가족",
-  "과학",
-  "추리",
-  "감성",
-];
 
 export type UserPreference = {
   ageGroup: string;
   difficultyLevel: string;
   responseLength: string;
-  explanationStyle: string;
-  interests: string[];
   instruction: string;
 };
 
@@ -57,8 +37,6 @@ export const DEFAULT_USER_PREFERENCE: UserPreference = {
   ageGroup: "초등 1~2학년",
   difficultyLevel: "보통",
   responseLength: "보통",
-  explanationStyle: "쉽게 설명",
-  interests: [],
   instruction: "",
 };
 
@@ -89,20 +67,12 @@ export function normalizePreferenceRow(
       RESPONSE_LENGTHS,
       DEFAULT_USER_PREFERENCE.responseLength,
     ),
-    explanationStyle: DEFAULT_USER_PREFERENCE.explanationStyle,
-    interests: DEFAULT_USER_PREFERENCE.interests,
     instruction: readText(row?.instruction),
   };
 }
 
 export function normalizePreferenceFormData(formData: FormData): UserPreference {
   const instruction = readText(formData.get("instruction")).slice(0, 500);
-  const interests = formData
-    .getAll("interests")
-    .filter(
-      (interest): interest is string =>
-        typeof interest === "string" && INTEREST_OPTIONS.includes(interest),
-    );
 
   return {
     ageGroup: pickAllowed(
@@ -120,12 +90,6 @@ export function normalizePreferenceFormData(formData: FormData): UserPreference 
       RESPONSE_LENGTHS,
       DEFAULT_USER_PREFERENCE.responseLength,
     ),
-    explanationStyle: pickAllowed(
-      formData.get("explanation_style"),
-      EXPLANATION_STYLES,
-      DEFAULT_USER_PREFERENCE.explanationStyle,
-    ),
-    interests,
     instruction,
   };
 }
