@@ -52,6 +52,9 @@ services:
       DB_HOST: ${DB_HOST:?Set DB_HOST to the external PostgreSQL host}
       DB_PORT: ${DB_PORT:-5432}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      SUPABASE_BUCKET: ${SUPABASE_BUCKET:-character-images}
     expose:
       - "8000"
     restart: unless-stopped

@@ -12,6 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 로컬 .env 파일 로드 (Docker Compose가 주입한 환경변수가 있으면 덮어쓰지 않음)
 load_dotenv(BASE_DIR / ".env", override=False)
+load_dotenv(BASE_DIR.parent / ".env", override=False)  # 프로젝트 루트 .env
 
 
 def env_bool(name: str, default: bool = False) -> bool:

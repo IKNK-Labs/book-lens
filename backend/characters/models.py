@@ -9,7 +9,7 @@ class Character(models.Model):
     role = models.CharField(max_length=50, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     emoji = models.CharField(max_length=10, blank=True, null=True)
-    profile_image_url = models.CharField(max_length=500, blank=True, null=True)
+    profile_image_url = models.TextField(blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
