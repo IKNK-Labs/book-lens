@@ -245,9 +245,8 @@ export default function Page() {
     { key: "name", label: "이름" },
     { key: "role", label: "역할" },
     { key: "gender", label: "성별" },
-    { key: "emoji", label: "이모지" },
     { key: "description", label: "소개" },
-    { key: "profile_image_url", label: "프로필 이미지 URL" },
+    { key: "profile_image_url", label: "프로필 이미지" },
   ];
 
   const handleCharacterSave = async () => {
@@ -482,6 +481,7 @@ export default function Page() {
                 <CharacterCard
                   key={character.id}
                   emoji={character.emoji ?? "📖"}
+                  imageUrl={character.profile_image_url ?? undefined}
                   name={character.name}
                   description={[character.role, character.gender].filter(Boolean).join(" · ")}
                   onClick={() =>
@@ -504,8 +504,16 @@ export default function Page() {
             {/* Character Info */}
             <div className="flex items-start justify-between gap-3 border-b border-[#eadcf0] pb-3.5 mb-3.5">
               <div className="flex gap-3 items-center">
-                <div className="h-[80px] w-[80px] rounded-3xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-4xl shrink-0">
-                  {selectedCharacter.emoji ?? "📖"}
+                <div className="h-[80px] w-[80px] rounded-3xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-4xl shrink-0 overflow-hidden">
+                  {selectedCharacter.profile_image_url ? (
+                    <img
+                      src={selectedCharacter.profile_image_url}
+                      alt={selectedCharacter.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    selectedCharacter.emoji ?? "📖"
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -687,15 +695,26 @@ export default function Page() {
                   className={inputCls}
                 />
               </div>
-              <div className={fieldWrapCls}>
-                <label className={labelCls}>이모지 <span className="text-[#f0a0b0]">*</span></label>
-                <input
-                  type="text"
-                  value={characterForm.emoji ?? ""}
-                  onChange={(e) => setCharacterForm((p) => ({ ...p, emoji: e.target.value }))}
-                  placeholder="예: 🧙"
-                  className={inputCls}
-                />
+              <div className={fieldWrapCls + " flex items-center gap-3"}>
+                <div className="h-[56px] w-[56px] rounded-2xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#fff2bf] grid place-items-center text-3xl shrink-0 overflow-hidden">
+                  {characterForm.profile_image_url ? (
+                    <img
+                      src={characterForm.profile_image_url}
+                      alt="캐릭터 이미지"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[#c7a8ff] text-2xl">?</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>캐릭터 이미지</label>
+                  <p className="text-[10px] text-[#94859d] leading-snug">
+                    {characterForm.profile_image_url
+                      ? "AI 자동완성으로 생성됨"
+                      : "AI 자동완성 후 자동 생성됩니다"}
+                  </p>
+                </div>
               </div>
               <div className={fieldWrapCls + " sm:col-span-2"}>
                 <label className={labelCls}>프로필 이미지 URL <span className="text-[#f0a0b0]">*</span></label>

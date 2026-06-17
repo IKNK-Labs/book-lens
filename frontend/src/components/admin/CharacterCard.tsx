@@ -1,5 +1,6 @@
 type CharacterCardProps = {
   emoji: string;
+  imageUrl?: string;
   name: string;
   description: string;
   onClick?: () => void;
@@ -8,6 +9,7 @@ type CharacterCardProps = {
 
 export default function CharacterCard({
   emoji,
+  imageUrl,
   name,
   description,
   onClick,
@@ -24,8 +26,12 @@ export default function CharacterCard({
           : "bg-[#fff9fc] border-[#eadcf0]"
       }`}
     >
-      <div className="w-14 h-14 rounded-[22px] bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#fff2bf] grid place-items-center text-3xl mb-2">
-        {emoji}
+      <div className="w-14 h-14 rounded-[22px] bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#fff2bf] grid place-items-center text-3xl mb-2 overflow-hidden">
+        {imageUrl ? (
+          <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          emoji
+        )}
       </div>
       <b className="block text-[12px] text-[#65506e]">{name}</b>
       <span className="block mt-1 text-[10px] text-[#94859d] leading-snug">
