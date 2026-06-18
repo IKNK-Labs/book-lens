@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Swal from "sweetalert2";
 import { adminBooksApi, ApiError } from "@/lib/api";
 
@@ -12,6 +12,7 @@ type BookForm = {
   author: string;
   publisher: string;
   description: string;
+  content: string;
 };
 
 const REQUIRED_FIELDS: { key: keyof BookForm; label: string }[] = [
@@ -26,6 +27,10 @@ const inputCls =
 const fieldWrapCls = "bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5";
 const labelCls = "block text-[10px] font-bold text-[#9b74ad] mb-1.5";
 
+function stopStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
 export default function Page() {
   const router = useRouter();
   const [form, setForm] = useState<BookForm>({
@@ -34,11 +39,31 @@ export default function Page() {
     author: "",
     publisher: "",
     description: "",
+    content: "",
   });
   const [autocompleteTitle, setAutocompleteTitle] = useState("");
   const [isAutocompleting, setIsAutocompleting] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+
   const autocompleteInputRef = useRef<HTMLInputElement>(null);
+  const scanFileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (isCameraOpen && videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [isCameraOpen, cameraStream]);
+
+  useEffect(() => {
+    return () => {
+      stopStream(cameraStream);
+    };
+  }, [cameraStream]);
 
   const updateField = (field: keyof BookForm, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -65,10 +90,15 @@ export default function Page() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "자동완성에 실패했습니다.");
+        throw new Error((err as { error?: string }).error ?? "자동완성에 실패했습니다.");
       }
 
-      const data = await res.json();
+      const data = await res.json() as {
+        author?: string;
+        publisher?: string;
+        description?: string;
+        content?: string;
+      };
       setAutocompleteTitle("");
       setForm((prev) => ({
         ...prev,
@@ -76,6 +106,7 @@ export default function Page() {
         author: data.author || prev.author,
         publisher: data.publisher || prev.publisher,
         description: data.description || prev.description,
+        content: data.content || prev.content,
       }));
     } catch (err) {
       Swal.fire({
@@ -87,6 +118,89 @@ export default function Page() {
     } finally {
       setIsAutocompleting(false);
     }
+  };
+
+  const sendScanRequest = async (blob: Blob) => {
+    setIsScanning(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", blob, "scan.jpg");
+
+      const res = await fetch("/api/admin/books/scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "스캔에 실패했습니다.");
+      }
+
+      const data = await res.json() as {
+        isbn?: string; title?: string; author?: string;
+        publisher?: string; description?: string; content?: string;
+      };
+      setForm((prev) => ({
+        ...prev,
+        isbn: data.isbn || prev.isbn,
+        title: data.title || prev.title,
+        author: data.author || prev.author,
+        publisher: data.publisher || prev.publisher,
+        description: data.description || prev.description,
+        content: data.content || prev.content,
+      }));
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "ISBN 스캔 실패",
+        text: err instanceof Error ? err.message : "서버에 연결할 수 없습니다.",
+        confirmButtonColor: "#c7a8ff",
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      setCameraStream(stream);
+      setIsCameraOpen(true);
+    } catch {
+      // 카메라 권한 거부 또는 장치 없음 → 파일 선택으로 폴백
+      scanFileInputRef.current?.click();
+    }
+  };
+
+  const closeCamera = () => {
+    stopStream(cameraStream);
+    setCameraStream(null);
+    setIsCameraOpen(false);
+  };
+
+  const captureFrame = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")?.drawImage(video, 0, 0);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      closeCamera();
+      await sendScanRequest(blob);
+    }, "image/jpeg", 0.92);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    await sendScanRequest(file);
   };
 
   const validate = () => {
@@ -115,6 +229,7 @@ export default function Page() {
         author: form.author.trim(),
         publisher: form.publisher.trim(),
         description: form.description.trim(),
+        content: form.content.trim() || undefined,
       });
 
       await Swal.fire({
@@ -159,6 +274,48 @@ export default function Page() {
 
   return (
     <div>
+      {/* 웹캠 촬영 모달 */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-white rounded-3xl p-4 w-full max-w-md mx-4 shadow-2xl">
+            <h3 className="text-[14px] font-bold text-[#7d5ba6] mb-3">📷 ISBN 바코드 스캔</h3>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="w-full rounded-2xl bg-black aspect-video object-cover"
+            />
+            <canvas ref={canvasRef} className="hidden" />
+            <p className="text-[11px] text-[#94859d] mt-2 mb-3 text-center">
+              바코드가 화면에 잘 보이도록 맞추고 촬영하세요
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={captureFrame}
+                className="flex-1 rounded-full py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2]"
+              >
+                촬영
+              </button>
+              <button
+                type="button"
+                onClick={() => { closeCamera(); scanFileInputRef.current?.click(); }}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] border border-[#eadcf0] whitespace-nowrap"
+              >
+                파일 선택
+              </button>
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="rounded-full px-4 py-2.5 text-[12px] font-bold text-[#8b69a3] border border-[#eadcf0]"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
           <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">동화책 등록</h3>
@@ -196,11 +353,21 @@ export default function Page() {
           </button>
           <button
             type="button"
-            className="flex-1 rounded-2xl border border-dashed border-[#d9c7ff] bg-[#fff0f7] px-4 py-3 text-left text-[12px] text-[#6f6174]"
+            onClick={openCamera}
+            disabled={isScanning}
+            className="flex-1 rounded-2xl border border-dashed border-[#d9c7ff] bg-[#fff0f7] px-4 py-3 text-left text-[12px] text-[#6f6174] disabled:opacity-60"
           >
             <b className="block text-[#7d5ba6] mb-1">📷 ISBN 스캔</b>
-            ISBN 바코드를 스캔해서 도서 정보를 불러옵니다.
+            {isScanning ? "스캔 중..." : "웹캠으로 바코드를 촬영해서 도서 정보를 불러옵니다."}
           </button>
+          {/* 파일 선택 폴백 (카메라 권한 거부 시) */}
+          <input
+            ref={scanFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
         </div>
 
         <div className={fieldWrapCls + " mb-4"}>
