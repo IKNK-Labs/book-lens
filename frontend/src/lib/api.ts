@@ -209,14 +209,57 @@ export const adminBooksApi = {
   detail: (id: number) => request<BookResponse>(`/api/admin/books/${id}`),
 };
 
+export type CharacterItem = {
+  id: number;
+  name: string;
+  role: string | null;
+  description: string | null;
+  emoji: string | null;
+  profile_image_url: string | null;
+};
+
+export type GreetingResponse = {
+  greeting: string;
+  character_name: string;
+  character_emoji: string | null;
+  character_profile_image_url: string | null;
+  has_history: boolean;
+};
+
+export type ChatSendResponse = {
+  response: string;
+  is_flagged: boolean;
+};
+
 export const booksApi = {
   list: (search?: string) => request<BookResponse[]>(withSearch("/api/books", search)),
 
   detail: (id: number) => request<BookResponse>(`/api/books/${id}`),
 
+  characters: (bookId: number) =>
+    request<CharacterItem[]>(`/api/books/${bookId}/characters`),
+
   vectorSearch: (query: string, limit = 10) =>
     request<BookVectorSearchResponse>("/api/books/vector-search", {
       method: "POST",
       body: JSON.stringify({ query, limit }),
+    }),
+};
+
+export const chatApi = {
+  greeting: (characterId: number, userId?: string) => {
+    const params = new URLSearchParams({ character_id: String(characterId) });
+    if (userId) params.set("user_id", userId);
+    return request<GreetingResponse>(`/api/chat/greeting?${params.toString()}`);
+  },
+
+  send: (characterId: number, message: string, userId?: string) =>
+    request<ChatSendResponse>("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        character_id: characterId,
+        message,
+        ...(userId ? { user_id: userId } : {}),
+      }),
     }),
 };

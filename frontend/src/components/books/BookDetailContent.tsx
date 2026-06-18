@@ -23,6 +23,7 @@ type BookDetailViewModel = {
   recommendedFor: string;
   storyHref?: string;
   chatHref?: string;
+  chatButtonLabel?: string;
   storyUnavailableMessage?: string;
   chatUnavailableMessage?: string;
   content?: string;
@@ -44,6 +45,21 @@ function withQuery(path: string, queryString: string) {
 function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
   const description = book.description || "등록된 소개가 없습니다.";
   const content = book.content?.content;
+  const characterCount = book.character_count ?? 0;
+
+  let chatHref: string | undefined;
+  let chatButtonLabel: string | undefined;
+  let chatUnavailableMessage: string | undefined;
+
+  if (characterCount === 1 && book.featured_character_id != null) {
+    chatHref = `/chat/${book.featured_character_id}`;
+    chatButtonLabel = "캐릭터와 대화하기";
+  } else if (characterCount > 1) {
+    chatHref = `/books/${book.id}/characters`;
+    chatButtonLabel = "캐릭터 선택하기";
+  } else {
+    chatUnavailableMessage = "등록된 캐릭터가 없습니다.";
+  }
 
   return {
     id: String(book.id),
@@ -51,10 +67,12 @@ function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
     description,
     coverEmoji: "📖",
     genres: ["도서"],
-    characterCount: book.character_count ?? 0,
+    characterCount,
     recommendedFor: "등록된 도서 상세를 확인해 보세요.",
     storyUnavailableMessage: "동화 구연은 샘플 도서에서 준비 중입니다.",
-    chatUnavailableMessage: "캐릭터 대화는 샘플 도서에서 준비 중입니다.",
+    chatHref,
+    chatButtonLabel,
+    chatUnavailableMessage,
     content: content || undefined,
     infoItems: compactInfoItems([
       { label: "저자", value: book.author },
@@ -207,7 +225,7 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
               href={book.chatHref}
               className="mt-3 block rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]"
             >
-              대표 캐릭터와 대화하기
+              {book.chatButtonLabel ?? "캐릭터와 대화하기"}
             </Link>
           ) : (
             <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">

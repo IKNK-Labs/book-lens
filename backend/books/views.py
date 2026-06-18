@@ -14,6 +14,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from characters.models import Character
 
 from .models import Book, BookContent
+
 from .search import VectorSearchError, search_book_content_chunks
 from .serializers import (
     BookContentSerializer,
@@ -264,6 +265,32 @@ class BookVectorSearchView(APIView):
             many=True,
         )
         return Response({"results": response_serializer.data})
+
+
+class BookCharactersView(APIView):
+    """GET /api/books/<pk>/characters — 도서에 등록된 캐릭터 목록"""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        try:
+            book = Book.objects.get(pk=pk)
+        except Book.DoesNotExist:
+            return Response({"error": "book not found"}, status=404)
+
+        characters = Character.objects.filter(book=book).order_by("id")
+        data = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "role": c.role,
+                "description": c.description,
+                "emoji": c.emoji,
+                "profile_image_url": c.profile_image_url,
+            }
+            for c in characters
+        ]
+        return Response(data)
 
 
 def _serialize_vector_result(result):
