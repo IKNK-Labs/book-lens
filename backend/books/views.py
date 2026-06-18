@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 
@@ -21,6 +22,8 @@ from .serializers import (
     BookVectorSearchRequestSerializer,
     BookVectorSearchResultSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 _SCAN_PROMPT = """ISBN이 주어지면 해당 동화책 정보를 아래 JSON 형식으로만 응답하세요. 다른 설명은 쓰지 마세요.
 
@@ -80,7 +83,6 @@ class BookGenerateView(APIView):
         )
 
         raw = result.text.strip()
-        print(raw)
 
         # 코드 블록 안의 JSON 우선 추출, 없으면 첫 번째 JSON 객체 추출
         json_block = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
@@ -93,7 +95,8 @@ class BookGenerateView(APIView):
         try:
             data = json.loads(candidate)
         except json.JSONDecodeError:
-            return Response({"error": "AI 응답을 파싱할 수 없습니다.", "raw": raw}, status=500)
+            logger.warning("Book generation AI response parsing failed")
+            return Response({"error": "AI 응답을 파싱할 수 없습니다."}, status=500)
 
         description = data.get("description", "")
         if len(description) > 200:
@@ -177,7 +180,8 @@ class BookScanView(APIView):
         try:
             data = json.loads(candidate)
         except json.JSONDecodeError:
-            return Response({"error": "AI 응답을 파싱할 수 없습니다.", "raw": raw}, status=500)
+            logger.warning("Book scan AI response parsing failed")
+            return Response({"error": "AI 응답을 파싱할 수 없습니다."}, status=500)
 
         description = data.get("description", "")
         if len(description) > 200:

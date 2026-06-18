@@ -1,6 +1,6 @@
 from django.db import connection
 from rest_framework.exceptions import APIException
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import AllowAny
 from rest_framework.viewsets import ModelViewSet
 
 from .models import ForbiddenRule
@@ -19,7 +19,11 @@ def forbidden_rules_table_exists():
 
 class ForbiddenRuleAdminViewSet(ModelViewSet):
     serializer_class = ForbiddenRuleSerializer
-    permission_classes = [IsAdminUser]
+    # Admin authorization is enforced by the Supabase session guard in the
+    # Next.js proxy for /api/admin/* before requests are rewritten to Django.
+    # Keep this aligned with the existing admin API pattern until backend
+    # Supabase JWT verification is implemented.
+    permission_classes = [AllowAny]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def initial(self, request, *args, **kwargs):
