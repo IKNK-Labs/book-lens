@@ -7,7 +7,7 @@ import {
 } from "./env";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
-const USER_PROTECTED_PATHS = ["/books", "/settings", "/chat"];
+const USER_PROTECTED_PATHS = ["/settings", "/chat"];
 
 function isAdminRoute(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");

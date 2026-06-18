@@ -1,9 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Book } from "../../data/mock";
-import { mockBooks } from "../../data/mock";
 import { ApiError, booksApi, type BookResponse } from "../../lib/api";
 import { Card } from "../ui/Card";
 import { Chip } from "../ui/Chip";
@@ -20,11 +17,7 @@ type BookDetailViewModel = {
   coverEmoji: string;
   genres: string[];
   characterCount: number;
-  recommendedFor: string;
-  storyHref?: string;
-  chatHref?: string;
-  storyUnavailableMessage?: string;
-  chatUnavailableMessage?: string;
+  characterNotice: string;
   content?: string;
   infoItems: BookInfoItem[];
 };
@@ -37,48 +30,27 @@ function compactInfoItems(items: Array<BookInfoItem | null>) {
   return items.filter((item): item is BookInfoItem => Boolean(item?.value.trim()));
 }
 
-function withQuery(path: string, queryString: string) {
-  return queryString ? `${path}?${queryString}` : path;
-}
-
 function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
   const description = book.description || "등록된 소개가 없습니다.";
   const content = book.content?.content;
+  const characterCount = book.character_count ?? 0;
 
   return {
     id: String(book.id),
     title: book.title,
     description,
     coverEmoji: "📖",
-    genres: ["도서"],
-    characterCount: book.character_count ?? 0,
-    recommendedFor: "등록된 도서 상세를 확인해 보세요.",
-    storyUnavailableMessage: "동화 구연은 샘플 도서에서 준비 중입니다.",
-    chatUnavailableMessage: "캐릭터 대화는 샘플 도서에서 준비 중입니다.",
+    genres: [book.publisher || "도서"],
+    characterCount,
+    characterNotice:
+      characterCount > 0
+        ? "대화 가능한 캐릭터가 등록되어 있습니다. 캐릭터 대화 연결은 준비 중입니다."
+        : "이 도서의 캐릭터 정보는 아직 준비 중입니다.",
     content: content || undefined,
     infoItems: compactInfoItems([
       { label: "저자", value: book.author },
       { label: "출판사", value: book.publisher },
       { label: "ISBN", value: book.isbn ?? "" },
-    ]),
-  };
-}
-
-function toDetailViewModelFromMockBook(book: Book, queryString: string): BookDetailViewModel {
-  return {
-    id: book.id,
-    title: book.title,
-    description: book.description || book.summary || "등록된 소개가 없습니다.",
-    coverEmoji: book.coverEmoji || "📖",
-    genres: book.genres?.length ? book.genres : ["도서"],
-    characterCount: book.characterCount ?? 0,
-    recommendedFor: book.recommendedFor || "이야기를 살펴보고 캐릭터와 대화를 이어가 보세요.",
-    storyHref: withQuery(`/story/${book.id}`, queryString),
-    chatHref: book.featuredCharacterId ? withQuery(`/chat/${book.featuredCharacterId}`, queryString) : undefined,
-    content: book.summary || undefined,
-    infoItems: compactInfoItems([
-      { label: "추천", value: book.label },
-      { label: "읽기 시간", value: book.readingTime },
     ]),
   };
 }
@@ -96,16 +68,9 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
       setError("");
       setBook(null);
 
-      const queryString = window.location.search.slice(1);
-
       if (!isPositiveIntegerId(bookId)) {
-        const fallbackBook = mockBooks.find((item) => item.id === bookId);
         if (isCurrent) {
-          if (fallbackBook) {
-            setBook(toDetailViewModelFromMockBook(fallbackBook, queryString));
-          } else {
-            setError("도서 정보를 찾을 수 없습니다.");
-          }
+          setError("도서를 찾을 수 없습니다.");
           setIsLoading(false);
         }
         return;
@@ -119,7 +84,7 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
         if (err instanceof ApiError && err.status === 404) {
           setError("도서를 찾을 수 없습니다.");
         } else {
-          setError("도서 정보를 불러오지 못했습니다.");
+          setError("도서 정보를 불러오지 못했습니다.\n잠시 후 다시 시도해 주세요.");
         }
       } finally {
         if (isCurrent) setIsLoading(false);
@@ -145,7 +110,9 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
     return (
       <Card>
         <h1 className="text-2xl font-black text-[var(--accent-strong)]">도서 상세</h1>
-        <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{error || "도서 정보를 찾을 수 없습니다."}</p>
+        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">
+          {error || "도서를 찾을 수 없습니다."}
+        </p>
       </Card>
     );
   }
@@ -185,39 +152,11 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
         <Card>
           <h2 className="text-lg font-black text-[var(--accent-strong)]">이 책으로 시작하기</h2>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-            동화 구연으로 이야기를 듣고, 등장 캐릭터와 대화를 이어가 보세요.
+            동화 구연과 캐릭터 대화 기능은 준비 중입니다.
           </p>
-          <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
-            {book.recommendedFor}
+          <p className="mt-5 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
+            {book.characterNotice}
           </p>
-          {book.storyHref ? (
-            <Link
-              href={book.storyHref}
-              className="mt-5 block rounded-full bg-[var(--accent)] px-5 py-3 text-center text-sm font-black text-white"
-            >
-              동화 구연 시작하기
-            </Link>
-          ) : (
-            <p className="mt-5 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
-              {book.storyUnavailableMessage}
-            </p>
-          )}
-          {book.chatHref ? (
-            <Link
-              href={book.chatHref}
-              className="mt-3 block rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]"
-            >
-              대표 캐릭터와 대화하기
-            </Link>
-          ) : (
-            <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
-              {book.chatUnavailableMessage ?? (
-                <>
-                  대화 가능한 캐릭터가 등록되면 캐릭터 대화가 열립니다.
-                </>
-              )}
-            </p>
-          )}
         </Card>
 
         {book.infoItems.length ? (
