@@ -1,4 +1,4 @@
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAdminUser
 from rest_framework.viewsets import ModelViewSet
 
 from .models import ForbiddenRule
@@ -7,7 +7,7 @@ from .serializers import ForbiddenRuleSerializer
 
 class ForbiddenRuleAdminViewSet(ModelViewSet):
     serializer_class = ForbiddenRuleSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
