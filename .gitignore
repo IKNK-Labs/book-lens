@@ -71,3 +71,5 @@ supabase/.env
 supabase/.env.local
 
 *.lock
+
+.venv/
