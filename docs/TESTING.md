@@ -51,6 +51,12 @@
 - `user_preference.user_id = app_user.id` 확인
 - 로그인 사용자가 자기 preference만 조회/수정 가능한지 확인
 
+## Moderation admin checks
+
+- `forbidden_rules` is an unmanaged external table.
+- When the table exists, `/api/admin/forbidden-rules` requires an authenticated Django staff/admin user.
+- When the table is missing, the endpoint should return 503 instead of an unhandled database traceback.
+- Do not create or modify the `forbidden_rules` schema during routine frontend/auth smoke tests.
 ## Prohibited during testing
 
 - production DB에서 테스트하지 않음

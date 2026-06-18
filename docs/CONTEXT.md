@@ -20,6 +20,12 @@
 - `vector-search`는 request-time FlagEmbedding lazy import crash를 피하기 위해 `BGE_M3_PRELOAD` 기반 startup preload를 지원함.
 - 로컬 Windows/CPU 환경에서 `vector-search`를 검증할 때는 `BGE_M3_PRELOAD=import`, `BGE_M3_DEVICE=cpu`를 사용함.
 
+## Moderation admin table note
+
+- Moderation admin uses the unmanaged external table `forbidden_rules`.
+- The repository does not create `forbidden_rules` with a Django migration.
+- If the external table is missing, `/api/admin/forbidden-rules` returns 503 instead of exposing a database traceback.
+- Schema creation for `forbidden_rules` remains an environment/setup task and is not changed in this branch.
 ## Supabase data connection rules
 
 - Supabase Auth는 실제 로그인/회원가입을 담당한다.

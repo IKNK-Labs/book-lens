@@ -12,6 +12,7 @@ type BookForm = {
   author: string;
   publisher: string;
   description: string;
+  content: string;
 };
 
 const REQUIRED_FIELDS: { key: keyof BookForm; label: string }[] = [
@@ -26,6 +27,10 @@ const inputCls =
 const fieldWrapCls = "bg-[#fff9fc] border border-[#eadcf0] rounded-2xl p-2.5";
 const labelCls = "block text-[10px] font-bold text-[#9b74ad] mb-1.5";
 
+function stopStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
 export default function Page() {
   const router = useRouter();
   const [form, setForm] = useState<BookForm>({
@@ -34,6 +39,7 @@ export default function Page() {
     author: "",
     publisher: "",
     description: "",
+    content: "",
   });
   const [autocompleteTitle, setAutocompleteTitle] = useState("");
   const [isAutocompleting, setIsAutocompleting] = useState(false);
@@ -52,6 +58,12 @@ export default function Page() {
       videoRef.current.srcObject = cameraStream;
     }
   }, [isCameraOpen, cameraStream]);
+
+  useEffect(() => {
+    return () => {
+      stopStream(cameraStream);
+    };
+  }, [cameraStream]);
 
   const updateField = (field: keyof BookForm, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -81,7 +93,12 @@ export default function Page() {
         throw new Error((err as { error?: string }).error ?? "자동완성에 실패했습니다.");
       }
 
-      const data = await res.json() as { author?: string; publisher?: string; description?: string };
+      const data = await res.json() as {
+        author?: string;
+        publisher?: string;
+        description?: string;
+        content?: string;
+      };
       setAutocompleteTitle("");
       setForm((prev) => ({
         ...prev,
@@ -89,6 +106,7 @@ export default function Page() {
         author: data.author || prev.author,
         publisher: data.publisher || prev.publisher,
         description: data.description || prev.description,
+        content: data.content || prev.content,
       }));
     } catch (err) {
       Swal.fire({
@@ -120,7 +138,7 @@ export default function Page() {
 
       const data = await res.json() as {
         isbn?: string; title?: string; author?: string;
-        publisher?: string; description?: string;
+        publisher?: string; description?: string; content?: string;
       };
       setForm((prev) => ({
         ...prev,
@@ -129,6 +147,7 @@ export default function Page() {
         author: data.author || prev.author,
         publisher: data.publisher || prev.publisher,
         description: data.description || prev.description,
+        content: data.content || prev.content,
       }));
     } catch (err) {
       Swal.fire({
@@ -156,7 +175,7 @@ export default function Page() {
   };
 
   const closeCamera = () => {
-    cameraStream?.getTracks().forEach((t) => t.stop());
+    stopStream(cameraStream);
     setCameraStream(null);
     setIsCameraOpen(false);
   };
@@ -210,6 +229,7 @@ export default function Page() {
         author: form.author.trim(),
         publisher: form.publisher.trim(),
         description: form.description.trim(),
+        content: form.content.trim() || undefined,
       });
 
       await Swal.fire({
