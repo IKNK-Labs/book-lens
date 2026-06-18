@@ -117,6 +117,45 @@ export const adminPersonasApi = {
     request<void>(`/api/admin/personas/${id}`, { method: "DELETE" }),
 };
 
+export type ForbiddenRuleType = "word" | "phrase" | "regex";
+export type ForbiddenRuleSeverity = "block" | "warn" | "info";
+export type ForbiddenRuleTarget = "user_input" | "bot_output" | "both";
+
+export type ForbiddenRulePayload = {
+  pattern: string;
+  rule_type: ForbiddenRuleType;
+  description?: string | null;
+  severity: ForbiddenRuleSeverity;
+  target: ForbiddenRuleTarget;
+  category?: string | null;
+  is_active: boolean;
+};
+
+export type ForbiddenRuleResponse = ForbiddenRulePayload & {
+  id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export const adminForbiddenRulesApi = {
+  list: () => request<ForbiddenRuleResponse[]>("/api/admin/forbidden-rules"),
+
+  create: (payload: ForbiddenRulePayload) =>
+    request<ForbiddenRuleResponse>("/api/admin/forbidden-rules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  update: (id: string, payload: Partial<ForbiddenRulePayload>) =>
+    request<ForbiddenRuleResponse>(`/api/admin/forbidden-rules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/admin/forbidden-rules/${id}`, { method: "DELETE" }),
+};
+
 export type BookPayload = {
   isbn: string | null;
   title: string;
