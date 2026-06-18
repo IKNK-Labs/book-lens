@@ -5,6 +5,7 @@ import re
 from google import genai
 from google.genai import types
 from django.db.models import Count, OuterRef, Subquery
+from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -21,6 +22,7 @@ from .serializers import (
     BookVectorSearchRequestSerializer,
     BookVectorSearchResultSerializer,
 )
+from .services import rebuild_book_content_chunks
 
 _SCAN_PROMPT = """ISBN이 주어지면 해당 동화책 정보를 아래 JSON 형식으로만 응답하세요. 다른 설명은 쓰지 마세요.
 
@@ -229,6 +231,23 @@ class BookAdminViewSet(ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"], url_path="embed")
+    def embed(self, request, pk=None):
+        book = self.get_object()
+        content = BookContent.objects.filter(book=book).first()
+        if content is None:
+            return Response({"error": "Book content does not exist."}, status=400)
+
+        result = rebuild_book_content_chunks(content)
+        fresh_book = self.get_queryset().get(pk=book.pk)
+        data = self.get_serializer(fresh_book).data
+        data["embedding"] = {
+            "book_content_id": result.book_content_id,
+            "chunk_count": result.chunk_count,
+            "embed_status": result.embed_status,
+        }
+        return Response(data)
 
 
 class BookViewSet(ReadOnlyModelViewSet):
