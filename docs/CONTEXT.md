@@ -28,6 +28,7 @@
 - Schema creation for `forbidden_rules` remains an environment/setup task and is not changed in this branch.
 - See `docs/FORBIDDEN_RULES_SCHEMA.md` for the minimal external table SQL example.
 - `/api/admin/*` authorization is enforced by the frontend Supabase admin session guard before proxying to Django; direct public exposure of Django admin APIs requires a stronger backend JWT verification design.
+- Deployment safety assumption: public traffic reaches Django admin APIs only through nginx/Next.js. The current repo deployment manifests expose public traffic through nginx while Django is an internal service/container port; if Django is ever exposed directly to the internet, backend Supabase JWT verification must be added before relying on `AllowAny` admin viewsets.
 ## Supabase data connection rules
 
 - Supabase Auth는 실제 로그인/회원가입을 담당한다.
