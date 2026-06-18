@@ -1,11 +1,14 @@
 """Tests for book list, detail, admin CRUD, and text search APIs."""
 
+from unittest.mock import patch
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from characters.models import Character, Persona
 
 from books.models import Book, BookContent
+from books.services import RebuildResult
 
 
 class BookApiTests(APITestCase):
@@ -20,6 +23,7 @@ class BookApiTests(APITestCase):
         BookContent.objects.create(
             book=self.book,
             content="Once upon a time there was a kind princess.",
+            embed_status="completed",
         )
         self.character = Character.objects.create(book=self.book, name="Snow White")
 
@@ -61,6 +65,7 @@ class BookApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["content"]["embed_status"], "completed")
 
     def test_admin_book_create_success_and_creates_content(self):
         response = self.client.post("/api/admin/books", self.payload(), format="json")
@@ -87,6 +92,48 @@ class BookApiTests(APITestCase):
         self.assertEqual(self.book.title, "Snow White Revised")
         self.assertEqual(self.book.content.content, "Updated story content.")
         self.assertEqual(response.data["content"]["content"], "Updated story content.")
+        self.assertEqual(response.data["content"]["embed_status"], "")
+
+    def test_admin_book_embed_rebuilds_only_requested_book(self):
+        other_book = Book.objects.create(
+            isbn="9780000000099",
+            title="Other Book",
+            author="Other Author",
+            publisher="Other Press",
+            description="Another story.",
+        )
+        BookContent.objects.create(book=other_book, content="Other content.")
+
+        def mark_completed(book_content):
+            book_content.embed_status = "completed"
+            book_content.save(update_fields=["embed_status", "updated_at"])
+            return RebuildResult(
+                book_content_id=book_content.id,
+                chunk_count=1,
+                embed_status="completed",
+            )
+
+        with patch("books.views.rebuild_book_content_chunks", side_effect=mark_completed) as rebuild:
+            response = self.client.post(f"/api/admin/books/{self.book.id}/embed")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["content"]["embed_status"], "completed")
+        self.assertEqual(response.data["embedding"]["chunk_count"], 1)
+        rebuild.assert_called_once()
+        self.assertEqual(rebuild.call_args.args[0].book_id, self.book.id)
+
+    def test_admin_book_embed_without_content_returns_400(self):
+        book = Book.objects.create(
+            isbn="9780000000088",
+            title="No Content",
+            author="Story Keeper",
+            publisher="Empty Press",
+            description="No body yet.",
+        )
+
+        response = self.client.post(f"/api/admin/books/{book.id}/embed")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_admin_book_patch_null_content_returns_400_and_keeps_content(self):
         original_content = self.book.content.content
