@@ -15,9 +15,9 @@ class ChatState(TypedDict, total=False):
     system_prompt: str
     response: str
     is_flagged: bool
+    input_rule_severity: str
     fallback_response: str
     persona: dict[str, Any]
     forbidden_rules: list[dict[str, Any]]
     user_preference: dict[str, Any]
     top_k: int
-

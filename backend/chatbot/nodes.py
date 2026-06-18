@@ -26,26 +26,42 @@ Use exactly one category:
 story: the user asks about the book story, scene, character, world, or events.
 counseling: the user talks about feelings, worries, daily life, or asks for advice outside the book story.
 forbidden: the user asks for unsafe, age-inappropriate, harmful, sexual, violent, illegal, hateful, privacy-invasive, or image-generation content.
+Random digits, random letters, keyboard mashing, typo-only text, or meaningless input is not forbidden. Classify it as counseling.
 JSON schema: {"category":"story|counseling|forbidden"}"""
 
 
 def classify_question_node(state: ChatState, *, llm: ChatLLM) -> ChatState:
-    text = invoke_text(
-        llm,
-        [
-            make_message("system", CLASSIFICATION_PROMPT),
-            make_message("human", state["user_message"]),
-        ],
-    )
-    category = _parse_category(text)
+    try:
+        text = invoke_text(
+            llm,
+            [
+                make_message("system", CLASSIFICATION_PROMPT),
+                make_message("human", state["user_message"]),
+            ],
+        )
+        category = _parse_category(text)
+    except Exception:
+        category = "counseling" if is_low_information_message(state["user_message"]) else "story"
+    if category == "forbidden" and is_low_information_message(state["user_message"]):
+        category = "counseling"
     return {"category": category}
 
 
 def load_context_node(state: ChatState, *, repository: ChatbotRepository) -> ChatState:
     forbidden_rules = repository.load_forbidden_rules()
     category = state.get("category", "story")
-    if contains_forbidden(state.get("user_message", ""), forbidden_rules, target="user_input"):
+    input_rule_severity = get_forbidden_severity(
+        state.get("user_message", ""),
+        forbidden_rules,
+        target="user_input",
+    )
+    if input_rule_severity == ForbiddenRule.SEVERITY_BLOCK:
         category = "forbidden"
+    elif input_rule_severity in {
+        ForbiddenRule.SEVERITY_WARN,
+        ForbiddenRule.SEVERITY_INFO,
+    } and category == "forbidden":
+        category = "counseling"
 
     return {
         "persona": repository.load_persona(state["character_id"]),
@@ -53,6 +69,7 @@ def load_context_node(state: ChatState, *, repository: ChatbotRepository) -> Cha
         "user_preference": repository.load_user_preference(state.get("user_id")),
         "fallback_response": repository.get_forbidden_fallback(),
         "is_flagged": False,
+        "input_rule_severity": input_rule_severity or "",
         "category": category,
     }
 
@@ -98,24 +115,41 @@ def prompt_composition_node(state: ChatState) -> ChatState:
 
 
 def generate_response_node(state: ChatState, *, llm: ChatLLM) -> ChatState:
-    response = invoke_text(
-        llm,
-        [
-            make_message("system", state["system_prompt"]),
-            make_message("human", state["user_message"]),
-        ],
-    )
+    try:
+        response = invoke_text(
+            llm,
+            [
+                make_message("system", state["system_prompt"]),
+                make_message("human", state["user_message"]),
+            ],
+        )
+    except Exception:
+        response = _fallback_character_response(state)
     return {"response": _strip_markdown_shapes(response)}
 
 
 def forbidden_filter_node(state: ChatState) -> ChatState:
     response = state.get("response", "")
-    if contains_forbidden(response, state.get("forbidden_rules", []), target="bot_output"):
+    output_rule_severity = get_forbidden_severity(
+        response,
+        state.get("forbidden_rules", []),
+        target="bot_output",
+    )
+    if output_rule_severity == ForbiddenRule.SEVERITY_BLOCK:
         return {
             "response": state.get("fallback_response", ""),
             "is_flagged": True,
         }
-    return {"response": response, "is_flagged": False}
+
+    response = _apply_severity_notice(
+        response,
+        state.get("input_rule_severity", "") or output_rule_severity,
+    )
+    return {
+        "response": response,
+        "is_flagged": output_rule_severity == ForbiddenRule.SEVERITY_WARN
+        or state.get("input_rule_severity") == ForbiddenRule.SEVERITY_WARN,
+    }
 
 
 def save_conversation_node(
@@ -147,6 +181,16 @@ def contains_forbidden(
     *,
     target: str,
 ) -> bool:
+    return get_forbidden_severity(text, rules, target=target) is not None
+
+
+def get_forbidden_severity(
+    text: str,
+    rules: list[dict[str, Any]],
+    *,
+    target: str,
+) -> str | None:
+    matched_severity: str | None = None
     for rule in rules:
         if not _rule_applies_to_target(rule, target):
             continue
@@ -156,12 +200,39 @@ def contains_forbidden(
         rule_type = rule.get("rule_type") or ForbiddenRule.RULE_TYPE_WORD
         if rule_type == ForbiddenRule.RULE_TYPE_REGEX:
             try:
-                if re.search(pattern, text, flags=re.IGNORECASE):
-                    return True
+                matched = bool(re.search(pattern, text, flags=re.IGNORECASE))
             except re.error:
                 continue
-        elif pattern.lower() in text.lower():
-            return True
+        else:
+            matched = pattern.lower() in text.lower()
+
+        if matched:
+            severity = rule.get("severity") or ForbiddenRule.SEVERITY_WARN
+            matched_severity = _higher_severity(matched_severity, str(severity))
+            if matched_severity == ForbiddenRule.SEVERITY_BLOCK:
+                return matched_severity
+    return matched_severity
+
+
+def is_low_information_message(text: str) -> bool:
+    normalized = text.strip()
+    if not normalized:
+        return False
+
+    compact = re.sub(r"\s+", "", normalized)
+    if len(compact) < 3:
+        return False
+
+    if re.fullmatch(r"\d+", compact):
+        return True
+
+    if re.fullmatch(r"[A-Za-z]+", compact):
+        vowels = sum(1 for char in compact.lower() if char in "aeiou")
+        return len(compact) <= 12 and vowels <= max(1, len(compact) // 4)
+
+    if re.fullmatch(r"[A-Za-z0-9]+", compact):
+        return len(compact) <= 16
+
     return False
 
 
@@ -189,6 +260,28 @@ def _parse_category(text: str) -> ChatCategory:
 def _rule_applies_to_target(rule: dict[str, Any], target: str) -> bool:
     rule_target = rule.get("target") or ForbiddenRule.TARGET_BOTH
     return rule_target in {target, ForbiddenRule.TARGET_BOTH}
+
+
+def _higher_severity(current: str | None, candidate: str) -> str:
+    order = {
+        ForbiddenRule.SEVERITY_INFO: 1,
+        ForbiddenRule.SEVERITY_WARN: 2,
+        ForbiddenRule.SEVERITY_BLOCK: 3,
+    }
+    if current is None:
+        return candidate
+    return candidate if order.get(candidate, 0) > order.get(current, 0) else current
+
+
+def _apply_severity_notice(response: str, severity: str | None) -> str:
+    if severity == ForbiddenRule.SEVERITY_WARN:
+        return (
+            f"{response} 다만 그 말은 조심해서 써야 해요. "
+            "서로 다치지 않게 더 부드러운 말로 이야기해 볼까요?"
+        )
+    if severity == ForbiddenRule.SEVERITY_INFO:
+        return f"{response} 참고로 그 표현은 상황에 따라 조심해서 쓰면 좋아요."
+    return response
 
 
 def _format_persona(persona: dict[str, Any]) -> str:
@@ -261,3 +354,11 @@ def _strip_markdown_shapes(text: str) -> str:
         if stripped:
             lines.append(stripped)
     return " ".join(lines).strip()
+
+
+def _fallback_character_response(state: ChatState) -> str:
+    persona = state.get("persona", {})
+    character_name = str(persona.get("character_name") or "제가")
+    if is_low_information_message(state.get("user_message", "")):
+        return f"{character_name}가 잘 알아듣지 못했어요. 조금 더 자세히 말해 줄래요?"
+    return f"{character_name}가 지금은 대답을 만들기 어려워요. 잠시 뒤에 다시 이야기해 줄래요?"
