@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "api",
     "books",
     "characters",
+    "chatbot",
     "moderation",
     "rest_framework",
     "django.contrib.admin",

@@ -156,6 +156,26 @@ export const adminForbiddenRulesApi = {
     request<void>(`/api/admin/forbidden-rules/${id}`, { method: "DELETE" }),
 };
 
+export type ChatRequest = {
+  character_id: number;
+  user_message: string;
+  user_id?: number | null;
+  top_k?: number;
+};
+
+export type ChatResponse = {
+  response: string;
+  category: "story" | "counseling" | "forbidden";
+};
+
+export const chatApi = {
+  send: (payload: ChatRequest) =>
+    request<ChatResponse>("/api/chat/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
+
 export type BookPayload = {
   isbn: string | null;
   title: string;
