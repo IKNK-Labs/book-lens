@@ -5,6 +5,22 @@ from django.db import models
 from characters.models import Character
 
 
+class AppUser(models.Model):
+    """Service user linked to Supabase auth.users by auth_user_id."""
+
+    email = models.CharField(max_length=255)
+    auth_user_id = models.UUIDField(unique=True)
+    nickname = models.CharField(max_length=50)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "app_user"
+        managed = False
+
+    def __str__(self):
+        return self.email
+
+
 class UserPreference(models.Model):
     """사용자 맞춤 설정 (Supabase app_user.id 기반, managed=False)."""
 
@@ -36,7 +52,12 @@ class ConversationLog(models.Model):
         (ROLE_ASSISTANT, "Assistant"),
     ]
 
-    user_id = models.UUIDField(null=True, blank=True)  # Supabase auth.users.id
+    user = models.ForeignKey(
+        AppUser,
+        on_delete=models.CASCADE,
+        related_name="conversation_logs",
+        db_column="user_id",
+    )
     character = models.ForeignKey(
         Character,
         on_delete=models.CASCADE,
