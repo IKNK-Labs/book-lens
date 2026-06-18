@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, booksApi, type BookResponse } from "../../lib/api";
 import { Card } from "../ui/Card";
@@ -18,6 +19,9 @@ type BookDetailViewModel = {
   genres: string[];
   characterCount: number;
   characterNotice: string;
+  chatHref?: string;
+  chatButtonLabel?: string;
+  chatUnavailableMessage?: string;
   content?: string;
   infoItems: BookInfoItem[];
 };
@@ -35,6 +39,20 @@ function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
   const content = book.content?.content;
   const characterCount = book.character_count ?? 0;
 
+  let chatHref: string | undefined;
+  let chatButtonLabel: string | undefined;
+  let chatUnavailableMessage: string | undefined;
+
+  if (characterCount === 1 && book.featured_character_id != null) {
+    chatHref = `/chat/${book.featured_character_id}`;
+    chatButtonLabel = "캐릭터 대화 화면 보기";
+  } else if (characterCount > 1) {
+    chatHref = `/books/${book.id}/characters`;
+    chatButtonLabel = "캐릭터 선택하기";
+  } else {
+    chatUnavailableMessage = "등록된 캐릭터가 없습니다.";
+  }
+
   return {
     id: String(book.id),
     title: book.title,
@@ -46,6 +64,9 @@ function toDetailViewModelFromApiBook(book: BookResponse): BookDetailViewModel {
       characterCount > 0
         ? "대화 가능한 캐릭터가 등록되어 있습니다. 캐릭터 대화 연결은 준비 중입니다."
         : "이 도서의 캐릭터 정보는 아직 준비 중입니다.",
+    chatHref,
+    chatButtonLabel,
+    chatUnavailableMessage,
     content: content || undefined,
     infoItems: compactInfoItems([
       { label: "저자", value: book.author },
@@ -152,11 +173,27 @@ export function BookDetailContent({ bookId }: { bookId: string }) {
         <Card>
           <h2 className="text-lg font-black text-[var(--accent-strong)]">이 책으로 시작하기</h2>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-            동화 구연과 캐릭터 대화 기능은 준비 중입니다.
+            동화 구연은 준비 중입니다. 캐릭터 대화 화면은 실제 대화 연결 전까지 준비 중 안내를 표시합니다.
           </p>
           <p className="mt-5 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
             {book.characterNotice}
           </p>
+          {book.chatHref ? (
+            <Link
+              href={book.chatHref}
+              className="mt-5 block rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-black text-[var(--accent-strong)]"
+            >
+              {book.chatButtonLabel ?? "캐릭터 대화 화면 보기"}
+            </Link>
+          ) : (
+            <p className="mt-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-4 py-3 text-sm font-bold text-[var(--muted)]">
+              {book.chatUnavailableMessage ?? (
+                <>
+                  대화 가능한 캐릭터가 등록되면 캐릭터 대화가 열립니다.
+                </>
+              )}
+            </p>
+          )}
         </Card>
 
         {book.infoItems.length ? (

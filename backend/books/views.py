@@ -6,6 +6,7 @@ import re
 from google import genai
 from google.genai import types
 from django.db.models import Count, OuterRef, Subquery
+from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -15,6 +16,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from characters.models import Character
 
 from .models import Book, BookContent
+
 from .search import VectorSearchError, search_book_content_chunks
 from .serializers import (
     BookContentSerializer,
@@ -22,6 +24,7 @@ from .serializers import (
     BookVectorSearchRequestSerializer,
     BookVectorSearchResultSerializer,
 )
+from .services import rebuild_book_content_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +237,23 @@ class BookAdminViewSet(ModelViewSet):
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
 
+    @action(detail=True, methods=["post"], url_path="embed")
+    def embed(self, request, pk=None):
+        book = self.get_object()
+        content = BookContent.objects.filter(book=book).first()
+        if content is None:
+            return Response({"error": "Book content does not exist."}, status=400)
+
+        result = rebuild_book_content_chunks(content)
+        fresh_book = self.get_queryset().get(pk=book.pk)
+        data = self.get_serializer(fresh_book).data
+        data["embedding"] = {
+            "book_content_id": result.book_content_id,
+            "chunk_count": result.chunk_count,
+            "embed_status": result.embed_status,
+        }
+        return Response(data)
+
 
 class BookViewSet(ReadOnlyModelViewSet):
     """사용자용 - 목록/상세 조회"""
@@ -268,6 +288,32 @@ class BookVectorSearchView(APIView):
             many=True,
         )
         return Response({"results": response_serializer.data})
+
+
+class BookCharactersView(APIView):
+    """GET /api/books/<pk>/characters — 도서에 등록된 캐릭터 목록"""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        try:
+            book = Book.objects.get(pk=pk)
+        except Book.DoesNotExist:
+            return Response({"error": "book not found"}, status=404)
+
+        characters = Character.objects.filter(book=book).order_by("id")
+        data = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "role": c.role,
+                "description": c.description,
+                "emoji": c.emoji,
+                "profile_image_url": c.profile_image_url,
+            }
+            for c in characters
+        ]
+        return Response(data)
 
 
 def _serialize_vector_result(result):
