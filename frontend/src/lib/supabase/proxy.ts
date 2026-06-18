@@ -74,7 +74,10 @@ export async function updateSession(request: NextRequest) {
       return supabaseResponse;
     }
 
-    if (isUserProtectedRoute(pathname) || isAdminRoute(pathname)) {
+    if (
+      isUserProtectedRoute(pathname) ||
+      (isAdminRoute(pathname) && pathname !== ADMIN_LOGIN_PATH)
+    ) {
       if (isAdminApiRoute(pathname)) {
         return adminApiError(503, getMissingSupabaseConfigMessage());
       }
