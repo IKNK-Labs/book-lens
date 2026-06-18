@@ -19,6 +19,8 @@ services:
       dockerfile: Dockerfile
       args:
         SERVER_API_URL: ${SERVER_API_URL:-http://django:8000}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
     image: book-lens-frontend:local
     container_name: book-lens-frontend
     environment:
@@ -27,6 +29,8 @@ services:
       HOSTNAME: 0.0.0.0
       SERVER_API_URL: ${SERVER_API_URL:-http://django:8000}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
     expose:
       - "3000"
     restart: unless-stopped

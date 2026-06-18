@@ -4,38 +4,23 @@ import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 import type { Book } from "../../data/mock";
 import { mockGenreFilters } from "../../data/mock";
-import { booksApi, type BookResponse, type BookVectorSearchResult } from "../../lib/api";
+import { booksApi, type BookVectorSearchResult } from "../../lib/api";
+import { toCardBook } from "../../lib/books/format";
 import { Card } from "../ui/Card";
 import { Chip } from "../ui/Chip";
 import { SectionHeader } from "../ui/SectionHeader";
 import { BookCard } from "./BookCard";
 
-function toCardBook(book: BookResponse): Book {
-  const description = book.description || book.content?.content || "등록된 소개가 없습니다.";
-
-  return {
-    id: String(book.id),
-    title: book.title,
-    description,
-    coverEmoji: "📖",
-    characterCount: book.character_count ?? 0,
-    genres: [book.publisher || "도서"],
-    featuredCharacterId: "",
-    summary: description,
-    recommendedFor: "등록된 도서 상세를 확인해 보세요.",
-    readingTime: "상세 보기",
-    label: book.author,
-  };
-}
-
 export function BookSearchShell({
   isMember = false,
   isPreview = false,
+  initialSearch = "",
 }: {
   isMember?: boolean;
   isPreview?: boolean;
+  initialSearch?: string;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [books, setBooks] = useState<Book[]>([]);
   const [vectorResults, setVectorResults] = useState<BookVectorSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,8 +81,8 @@ export function BookSearchShell({
         title="동화 찾기"
         description={
           isMember
-            ? "저장한 취향을 바탕으로 오늘 읽기 좋은 동화를 찾아보세요."
-            : "궁금한 동화를 찾아보고, 마음에 드는 이야기는 상세 화면에서 더 살펴보세요."
+            ? "등록된 동화에서 오늘 읽기 좋은 이야기를 찾아보세요."
+            : "궁금한 동화를 찾아보고, 마음에 드는 이야기는 상세 화면에서 둘러보세요."
         }
       />
       <Card>
@@ -109,7 +94,7 @@ export function BookSearchShell({
             <input
               id="book-search"
               className="w-full bg-transparent outline-none placeholder:text-[var(--muted)]"
-              placeholder="백설공주, 신데렐라, 용감한 모험..."
+              placeholder="미녀와 야수, 모험, 용기..."
               aria-label="동화 검색어"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -133,7 +118,7 @@ export function BookSearchShell({
       </Card>
       {isMember ? (
         <p className="rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-5 py-4 text-sm font-bold text-[var(--accent-strong)]">
-          최근 저장한 관심 주제를 참고해 추천 도서를 보여드려요.
+          저장한 설정은 대화 경험에만 반영되며, 도서 목록은 현재 등록된 데이터를 보여줍니다.
         </p>
       ) : null}
       {error ? (
@@ -177,12 +162,16 @@ export function BookSearchShell({
         <p className="rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-5 py-4 text-sm font-bold text-[var(--accent-strong)]">
           도서 목록을 불러오는 중입니다.
         </p>
-      ) : (
+      ) : books.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {books.map((book) => (
             <BookCard key={book.id} book={book} isMember={isMember} isPreview={isPreview} />
           ))}
         </div>
+      ) : (
+        <p className="rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-5 py-4 text-sm font-bold text-[var(--accent-strong)]">
+          조건에 맞는 동화가 없습니다.
+        </p>
       )}
     </div>
   );

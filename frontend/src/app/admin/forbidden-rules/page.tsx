@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import {
+  ApiError,
   adminForbiddenRulesApi,
   type ForbiddenRulePayload,
   type ForbiddenRuleResponse,
@@ -89,6 +90,19 @@ function shouldShowCustomCategory(category?: string | null) {
   return Boolean(category && getCategorySelectValue(category) === CUSTOM_CATEGORY_VALUE);
 }
 
+
+function getForbiddenRulesErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.status === 503) {
+    return "forbidden_rules 테이블이 아직 설정되지 않았습니다. docs/FORBIDDEN_RULES_SCHEMA.md의 SQL 예시로 환경을 준비한 뒤 다시 시도해주세요.";
+  }
+
+  if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+    return "관리자 로그인 또는 권한을 확인해주세요.";
+  }
+
+  return "서버 연결 또는 API 설정을 확인해주세요.";
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "short",
@@ -120,7 +134,7 @@ export default function ForbiddenRulesPage() {
       Swal.fire({
         icon: "error",
         title: "금지어 목록을 불러오지 못했습니다",
-        text: "서버 연결 또는 API 설정을 확인해주세요.",
+        text: getForbiddenRulesErrorMessage(error),
         confirmButtonColor: "#c7a8ff",
       });
     } finally {
@@ -144,7 +158,7 @@ export default function ForbiddenRulesPage() {
         Swal.fire({
           icon: "error",
           title: "금지어 목록을 불러오지 못했습니다",
-          text: "서버 연결 또는 API 설정을 확인해주세요.",
+          text: getForbiddenRulesErrorMessage(error),
           confirmButtonColor: "#c7a8ff",
         });
       })
@@ -207,7 +221,7 @@ export default function ForbiddenRulesPage() {
       Swal.fire({
         icon: "error",
         title: "추가에 실패했습니다",
-        text: "입력값과 서버 상태를 확인해주세요.",
+        text: getForbiddenRulesErrorMessage(error),
         confirmButtonColor: "#c7a8ff",
       });
     } finally {
@@ -246,7 +260,7 @@ export default function ForbiddenRulesPage() {
       Swal.fire({
         icon: "error",
         title: "저장에 실패했습니다",
-        text: "입력값과 서버 상태를 확인해주세요.",
+        text: getForbiddenRulesErrorMessage(error),
         confirmButtonColor: "#c7a8ff",
       });
     } finally {

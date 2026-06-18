@@ -4,6 +4,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSafeNext } from "@/lib/authNext";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getMissingSupabaseConfigMessage,
+  hasSupabaseConfig,
+} from "@/lib/supabase/env";
 
 function getFormValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -33,6 +37,10 @@ export async function login(formData: FormData) {
     redirectWithError("이메일과 비밀번호를 입력해 주세요.", "/login", safeNext);
   }
 
+  if (!hasSupabaseConfig()) {
+    redirectWithError(getMissingSupabaseConfigMessage(), "/login", safeNext);
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -57,6 +65,10 @@ export async function signUp(formData: FormData) {
 
   if (password.length < 6) {
     redirectWithError("비밀번호는 최소 6자 이상이어야 해요.", "/signup");
+  }
+
+  if (!hasSupabaseConfig()) {
+    redirectWithError(getMissingSupabaseConfigMessage(), "/signup");
   }
 
   const requestHeaders = await headers();
@@ -94,6 +106,11 @@ export async function signInWithGoogle(formData: FormData) {
   const safeNext = getSafeNext(getFormValue(formData, "next"));
   const requestHeaders = await headers();
   const origin = requestHeaders.get("origin") ?? "http://localhost:3000";
+
+  if (!hasSupabaseConfig()) {
+    redirectWithError(getMissingSupabaseConfigMessage(), "/login", safeNext);
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithOAuth({

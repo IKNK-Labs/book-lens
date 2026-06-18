@@ -1,4 +1,5 @@
 import { createClient } from "./supabase/server";
+import { hasSupabaseConfig } from "./supabase/env";
 
 export type ViewerMode = "guest" | "member";
 
@@ -36,10 +37,6 @@ const mockMemberViewer: Viewer = {
   isPreview: true,
 };
 
-function hasSupabaseEnv() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
-}
-
 function isMockPreviewAllowed() {
   return process.env.NODE_ENV !== "production" && process.env.ENABLE_MOCK_AUTH_PREVIEW === "true";
 }
@@ -53,7 +50,7 @@ export function getGuestViewer(): Viewer {
 }
 
 async function getSupabaseUserViewerIfAvailable(): Promise<Viewer | null> {
-  if (!hasSupabaseEnv()) {
+  if (!hasSupabaseConfig()) {
     return null;
   }
 
