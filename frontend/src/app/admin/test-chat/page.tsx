@@ -1,349 +1,451 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  mockBooks,
-  mockCharacters,
-  mockMessagesByCharacterId,
-  mockPersonas,
-} from "@/data/mock";
+  adminBooksApi,
+  adminCharactersApi,
+  adminPersonasApi,
+  chatApi,
+  type ApprovalStatus,
+  type BookResponse,
+  type CharacterResponse,
+  type PersonaResponse,
+} from "@/lib/api";
 
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  tag?: string;
 };
 
-const MOCK_RESPONSES: Record<string, string[]> = {
-  witch: [
-    "흥. 그게 네가 알고 싶은 거야? 좀 더 생각해보고 물어.",
-    "거울도 내 마음을 다 비추지는 못해. 네가 그걸 이해할 수 있을지 모르겠지만.",
-    "내 과거를 판단하지 마. 나도 그때는 내 방식대로 살았을 뿐이야.",
-    "외로움이라는 게 사람을 어떻게 바꾸는지... 너는 알 수 있을까.",
-  ],
-  "fairy-godmother": [
-    "얘야, 마음이 따뜻하면 어떤 어려움도 헤쳐나갈 수 있단다.",
-    "걱정 마, 내가 여기 있잖니. 함께라면 무서울 게 없어.",
-    "작은 꿈도 소중히 여기렴. 그 꿈이 언젠가 큰 행복이 될 거야.",
-    "용기를 낼 때 가장 멋진 마법이 일어난단다.",
-  ],
-  fox: [
-    "우리가 특별해지는 건 서로를 위해 시간을 쓸 때야.",
-    "눈으로는 볼 수 없어. 마음으로 봐야 해. 가장 중요한 건 눈에 보이지 않거든.",
-    "길들임이란 게 뭔지 조금씩 알아가고 있니?",
-    "네가 내게 특별해지려면 시간이 필요해. 서두르지 않아도 돼.",
-  ],
-  wolf: [
-    "어흥! 하지만 걱정 마, 오늘은 이야기만 할 거니까.",
-    "숲길은 조심해야 해. 하지만 무서워하기보다는 현명하게 생각해야지.",
-    "나는 이야기 속에서 교훈을 만드는 역할이야.",
-    "낯선 존재를 무조건 따라가면 안 돼. 판단하는 법을 배우렴.",
-  ],
-};
-
-const DEFAULT_RESPONSES = [
-  "그건 정말 좋은 질문이야.",
-  "함께 이야기해서 즐거워.",
-  "조금 더 생각해볼게.",
-];
-
-function getMockResponse(characterId: string): string {
-  const pool = MOCK_RESPONSES[characterId] ?? DEFAULT_RESPONSES;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function getInitialMessages(characterId: string): ChatMessage[] {
-  const raw = mockMessagesByCharacterId[characterId];
-  if (!raw) return [];
-  return raw.map((m) => ({ ...m }));
-}
-
-const APPROVAL_LABEL = {
+const APPROVAL_LABEL: Record<ApprovalStatus, string> = {
   approved: "승인됨",
   draft: "검토 중",
   rejected: "반려됨",
-} as const;
+};
 
-const APPROVAL_STYLE = {
+const APPROVAL_STYLE: Record<ApprovalStatus, string> = {
   approved: "bg-[#e8f9ef] text-[#3d8a5e] border-[#b6e6ca]",
   draft: "bg-[#fff9ec] text-[#9b7a1e] border-[#f0dfa0]",
   rejected: "bg-[#fff0f0] text-[#b04040] border-[#f0c0c0]",
-} as const;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+function getCharacterAvatar(character?: CharacterResponse | null) {
+  if (!character) return "?";
+  return character.emoji || character.name.slice(0, 1) || "?";
+}
+
+function CharacterAvatar({
+  character,
+  size = "md",
+}: {
+  character?: CharacterResponse | null;
+  size?: "sm" | "md";
+}) {
+  const sizeClass = size === "sm" ? "h-9 w-9 rounded-2xl" : "h-12 w-12 rounded-[20px]";
+  const textClass = size === "sm" ? "text-base" : "text-xl";
+
+  return (
+    <div
+      className={`${sizeClass} grid place-items-center shrink-0 overflow-hidden border border-[#eadcf0] bg-gradient-to-br from-[#fff7d8] via-[#f6d7ff] to-[#d9c8ff] shadow-[0_4px_12px_rgba(150,110,180,0.12)]`}
+    >
+      {character?.profile_image_url ? (
+        <img
+          src={character.profile_image_url}
+          alt={character.name}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className={textClass}>{getCharacterAvatar(character)}</span>
+      )}
+    </div>
+  );
+}
 
 export default function Page() {
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    null
-  );
+  const [books, setBooks] = useState<BookResponse[]>([]);
+  const [characters, setCharacters] = useState<CharacterResponse[]>([]);
+  const [personasByCharacterId, setPersonasByCharacterId] = useState<
+    Record<number, PersonaResponse | null>
+  >({});
+  const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingBooks, setIsLoadingBooks] = useState(true);
+  const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
+  const [isLoadingGreeting, setIsLoadingGreeting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const selectedBook = mockBooks.find((b) => b.id === selectedBookId);
-  const filteredCharacters = selectedBook
-    ? mockCharacters.filter((c) => c.bookTitle === selectedBook.title)
-    : [];
-  const selectedCharacter = mockCharacters.find(
-    (c) => c.id === selectedCharacterId
-  );
-  const selectedPersona = mockPersonas.find(
-    (p) => p.characterId === selectedCharacterId
-  );
+  const selectedBook = books.find((book) => book.id === selectedBookId) ?? null;
+  const selectedCharacter =
+    characters.find((character) => character.id === selectedCharacterId) ?? null;
+  const selectedPersona =
+    selectedCharacterId == null ? null : personasByCharacterId[selectedCharacterId] ?? null;
 
-  const selectCharacter = (characterId: string) => {
-    setSelectedCharacterId(characterId);
-    setMessages(getInitialMessages(characterId));
+  const chatDisabled = !selectedCharacter || isSending || isLoadingGreeting;
+  const statusText = useMemo(() => {
+    if (isLoadingGreeting) return "첫 인사말을 불러오는 중입니다.";
+    if (isSending) return "챗봇 API 응답을 기다리는 중입니다.";
+    if (!selectedCharacter) return "동화책과 캐릭터를 선택하면 테스트를 시작할 수 있습니다.";
+    return "금지어는 챗봇 API의 분류와 출력 필터를 통과하며, 캐릭터 선택 시 첫 인사말은 persona의 시작 인사말을 사용합니다.";
+  }, [isLoadingGreeting, isSending, selectedCharacter]);
+
+  useEffect(() => {
+    setIsLoadingBooks(true);
+    adminBooksApi
+      .list()
+      .then((items) => {
+        setBooks(items);
+        setSelectedBookId((prev) => prev ?? items[0]?.id ?? null);
+      })
+      .catch((error) => {
+        setErrorMessage(getErrorMessage(error, "동화책 목록을 불러오지 못했습니다."));
+      })
+      .finally(() => setIsLoadingBooks(false));
+  }, []);
+
+  useEffect(() => {
+    if (selectedBookId == null) {
+      setCharacters([]);
+      setSelectedCharacterId(null);
+      setMessages([]);
+      return;
+    }
+
+    setIsLoadingCharacters(true);
+    setErrorMessage("");
+    adminCharactersApi
+      .list(selectedBookId)
+      .then((items) => {
+        setCharacters(items);
+        setSelectedCharacterId(null);
+        setMessages([]);
+      })
+      .catch((error) => {
+        setCharacters([]);
+        setErrorMessage(getErrorMessage(error, "캐릭터 목록을 불러오지 못했습니다."));
+      })
+      .finally(() => setIsLoadingCharacters(false));
+  }, [selectedBookId]);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isSending]);
+
+  const selectBook = (bookId: number) => {
+    setSelectedBookId(bookId);
+    setSelectedCharacterId(null);
     setInputValue("");
+    setErrorMessage("");
   };
 
-  const handleSend = () => {
-    if (!inputValue.trim() || !selectedCharacterId || isLoading) return;
+  const loadPersona = async (characterId: number) => {
+    if (personasByCharacterId[characterId] !== undefined) return;
 
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: inputValue.trim(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    const personas = await adminPersonasApi.list(characterId);
+    setPersonasByCharacterId((prev) => ({
+      ...prev,
+      [characterId]: personas[0] ?? null,
+    }));
+  };
+
+  const selectCharacter = async (character: CharacterResponse) => {
+    setSelectedCharacterId(character.id);
     setInputValue("");
-    setIsLoading(true);
+    setErrorMessage("");
+    setMessages([]);
+    setIsLoadingGreeting(true);
 
-    setTimeout(() => {
-      const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: getMockResponse(selectedCharacterId),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setIsLoading(false);
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 50);
-    }, 800);
+    try {
+      await loadPersona(character.id);
+      const greeting = await chatApi.greeting(character.id);
+      setMessages([
+        {
+          id: `greeting-${character.id}-${Date.now()}`,
+          role: "assistant",
+          content: greeting.greeting,
+        },
+      ]);
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "첫 인사말을 불러오지 못했습니다."));
+      setMessages([
+        {
+          id: `fallback-${character.id}-${Date.now()}`,
+          role: "assistant",
+          content: `안녕! 나는 ${character.name}이야. 테스트 질문을 입력해줘.`,
+        },
+      ]);
+    } finally {
+      setIsLoadingGreeting(false);
+    }
   };
 
   const handleReset = () => {
-    if (!selectedCharacterId) return;
-    setMessages(getInitialMessages(selectedCharacterId));
+    if (!selectedCharacter) return;
+    void selectCharacter(selectedCharacter);
+  };
+
+  const handleSend = async () => {
+    const text = inputValue.trim();
+    if (!text || !selectedCharacter || chatDisabled) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: text,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
+    setIsSending(true);
+    setErrorMessage("");
+
+    try {
+      const result = await chatApi.send(selectedCharacter.id, text);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: result.response,
+          tag: result.is_flagged ? "필터 감지" : undefined,
+        },
+      ]);
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "챗봇 API 호출에 실패했습니다."));
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: "응답을 받아오지 못했습니다. 서버 상태와 API 설정을 확인해주세요.",
+          tag: "오류",
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
     <div>
-      <div className="mb-4">
-        <h3 className="text-2xl tracking-tight text-[#7d5ba6] m-0">
+      <div className="mb-5">
+        <h3 className="m-0 text-[26px] font-semibold tracking-tight text-[#7d5ba6]">
           테스트 채팅
         </h3>
-        <p className="mt-1.5 text-[13px] text-[#94859d]">
-          캐릭터를 선택하고 페르소나 응답을 테스트합니다.
+        <p className="mt-2 text-[13px] text-[#8d7b99]">
+          동화책을 먼저 고르고, 그 책의 캐릭터를 선택해 실제 챗봇 API를 테스트합니다.
         </p>
       </div>
 
-      <div className="flex gap-3 h-[calc(100vh-160px)] min-h-[560px]">
-        {/* Left Panel */}
-        <aside className="w-[200px] shrink-0 flex flex-col gap-2.5">
-          {/* Book Select */}
-          <div className="bg-white border border-[#eadcf0] rounded-3xl p-3 shadow-[0_6px_16px_rgba(180,140,205,0.1)]">
-            <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
-              동화책 선택
-            </p>
-            <div className="grid gap-1.5">
-              {mockBooks.map((book) => (
-                <button
-                  key={book.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedBookId(book.id);
-                    setSelectedCharacterId(null);
-                    setMessages([]);
-                  }}
-                  className={`w-full text-left rounded-2xl px-2.5 py-2 text-[11px] transition-colors ${
-                    selectedBookId === book.id
-                      ? "bg-gradient-to-br from-[#ffd6ea] to-[#d9c7ff] text-[#6b4b82] font-bold"
-                      : "bg-[#faf8fc] border border-[#eadcf0] text-[#78647f]"
-                  }`}
-                >
-                  {book.coverEmoji} {book.title}
-                </button>
-              ))}
-            </div>
-          </div>
+      {errorMessage && (
+        <div className="mb-3 rounded-2xl border border-[#f0c0c0] bg-[#fff7f7] px-4 py-3 text-[12px] font-semibold text-[#b04040]">
+          {errorMessage}
+        </div>
+      )}
 
-          {/* Character Select */}
-          {selectedBookId && (
-            <div className="bg-white border border-[#eadcf0] rounded-3xl p-3 shadow-[0_6px_16px_rgba(180,140,205,0.1)] flex-1 overflow-y-auto">
-              <p className="text-[11px] font-bold text-[#9b74ad] mb-2">
-                캐릭터 선택
-              </p>
-              {filteredCharacters.length === 0 ? (
-                <p className="text-[10px] text-[#94859d] text-center py-3">
-                  캐릭터 없음
+      <div className="flex min-h-[560px] h-[calc(100vh-165px)] gap-3">
+        <aside className="flex w-[330px] shrink-0 flex-col gap-3">
+          <section className="min-h-0 flex-[0.9] rounded-[26px] border border-[#eadcf0] bg-white p-3 shadow-[0_10px_28px_rgba(168,130,190,0.12)]">
+            <div className="mb-3 flex items-center justify-between px-1">
+              <b className="text-[12px] text-[#9b74ad]">1. 동화책 선택</b>
+              <span className="text-[11px] text-[#a48faf]">{books.length}권</span>
+            </div>
+            <div className="grid max-h-full gap-2 overflow-y-auto pr-1">
+              {isLoadingBooks ? (
+                <p className="py-8 text-center text-[12px] text-[#94859d]">불러오는 중...</p>
+              ) : books.length === 0 ? (
+                <p className="py-8 text-center text-[12px] text-[#94859d]">
+                  등록된 동화책이 없습니다.
                 </p>
               ) : (
-                <div className="grid gap-1.5">
-                  {filteredCharacters.map((character) => (
-                    <button
-                      key={character.id}
-                      type="button"
-                      onClick={() => selectCharacter(character.id)}
-                      className={`w-full text-left rounded-2xl px-2.5 py-2 transition-colors ${
-                        selectedCharacterId === character.id
-                          ? "bg-gradient-to-br from-[#ffd6ea] to-[#d9c7ff] text-[#6b4b82] font-bold"
-                          : "bg-[#faf8fc] border border-[#eadcf0] text-[#78647f]"
-                      }`}
-                    >
-                      <span className="text-base mr-1.5">
-                        {character.avatarEmoji}
-                      </span>
-                      <span className="text-[11px]">{character.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </aside>
-
-        {/* Right Panel - Chat */}
-        <div className="flex-1 flex flex-col bg-white border border-[#eadcf0] rounded-3xl shadow-[0_10px_26px_rgba(180,140,205,0.13)] overflow-hidden">
-          {!selectedCharacterId ? (
-            <div className="flex-1 flex items-center justify-center text-[13px] text-[#94859d]">
-              좌측에서 동화책과 캐릭터를 선택하세요.
-            </div>
-          ) : (
-            <>
-              {/* Chat Header */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-[#eadcf0] bg-gradient-to-r from-[#fff7fb] to-[#f4efff]">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-xl shrink-0">
-                  {selectedCharacter?.avatarEmoji}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <b className="text-[14px] text-[#72508c]">
-                      {selectedCharacter?.name}
-                    </b>
-                    <span className="text-[10px] text-[#94859d]">
-                      {selectedCharacter?.role} · {selectedBook?.title}
-                    </span>
-                    {selectedPersona && (
-                      <span
-                        className={`border rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          APPROVAL_STYLE[selectedPersona.approvalStatus]
-                        }`}
-                      >
-                        {APPROVAL_LABEL[selectedPersona.approvalStatus]}
-                      </span>
-                    )}
-                  </div>
-                  {selectedPersona && (
-                    <p className="text-[10px] text-[#94859d] m-0 truncate">
-                      {selectedPersona.speechStyle} ·{" "}
-                      &ldquo;{selectedPersona.catchphrase}&rdquo;
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${
-                      msg.role === "user" ? "justify-end" : "justify-start"
+                books.map((book) => (
+                  <button
+                    key={book.id}
+                    type="button"
+                    onClick={() => selectBook(book.id)}
+                    className={`min-h-[62px] rounded-[18px] border px-3 py-2 text-left transition ${
+                      selectedBookId === book.id
+                        ? "border-[#dcb9f2] bg-gradient-to-r from-[#ffe3f7] to-[#dec3ff] shadow-[0_8px_18px_rgba(185,130,210,0.16)]"
+                        : "border-[#eadcf0] bg-[#fbf9fd] hover:border-[#d9c3e8]"
                     }`}
                   >
-                    {msg.role === "assistant" && (
-                      <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-sm mr-1.5 shrink-0 self-end">
-                        {selectedCharacter?.avatarEmoji}
-                      </div>
+                    <span className="block truncate text-[18px] font-semibold text-[#76548d]">
+                      {book.title}
+                    </span>
+                    <span className="mt-1 block truncate text-[11px] text-[#98869f]">
+                      {book.author} · 캐릭터 {book.character_count}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+
+          <section className="min-h-0 flex-1 rounded-[26px] border border-[#eadcf0] bg-white p-3 shadow-[0_10px_28px_rgba(168,130,190,0.12)]">
+            <div className="mb-3 flex items-center justify-between px-1">
+              <b className="text-[12px] text-[#9b74ad]">2. 캐릭터 선택</b>
+              <span className="text-[11px] text-[#a48faf]">{characters.length}명</span>
+            </div>
+            <div className="grid max-h-full gap-2 overflow-y-auto pr-1">
+              {!selectedBookId ? (
+                <p className="py-8 text-center text-[12px] text-[#94859d]">
+                  동화책을 먼저 선택하세요.
+                </p>
+              ) : isLoadingCharacters ? (
+                <p className="py-8 text-center text-[12px] text-[#94859d]">불러오는 중...</p>
+              ) : characters.length === 0 ? (
+                <p className="py-8 text-center text-[12px] text-[#94859d]">
+                  이 책에 등록된 캐릭터가 없습니다.
+                </p>
+              ) : (
+                characters.map((character) => (
+                  <button
+                    key={character.id}
+                    type="button"
+                    onClick={() => void selectCharacter(character)}
+                    className={`flex min-h-[56px] items-center gap-3 rounded-[18px] border px-3 py-2 text-left transition ${
+                      selectedCharacterId === character.id
+                        ? "border-[#dcb9f2] bg-gradient-to-r from-[#ffe3f7] to-[#dec3ff] shadow-[0_8px_18px_rgba(185,130,210,0.16)]"
+                        : "border-[#eadcf0] bg-[#fbf9fd] hover:border-[#d9c3e8]"
+                    }`}
+                  >
+                    <CharacterAvatar character={character} size="sm" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-semibold text-[#76548d]">
+                        {character.name}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-[#98869f]">
+                        {character.role || "역할 미등록"}
+                      </span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+        </aside>
+
+        <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[26px] border border-[#eadcf0] bg-white shadow-[0_14px_34px_rgba(168,130,190,0.14)]">
+          {selectedCharacter ? (
+            <>
+              <div className="flex items-center gap-3 border-b border-[#eadcf0] bg-gradient-to-r from-[#fff7fb] to-[#f6efff] px-5 py-3">
+                <CharacterAvatar character={selectedCharacter} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <b className="text-[17px] text-[#72508c]">{selectedCharacter.name}</b>
+                    <span className="text-[11px] text-[#91809a]">
+                      {selectedCharacter.role || "역할 미등록"} · {selectedBook?.title}
+                    </span>
+                    {selectedPersona?.approved_status && (
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                          APPROVAL_STYLE[selectedPersona.approved_status]
+                        }`}
+                      >
+                        {APPROVAL_LABEL[selectedPersona.approved_status]}
+                      </span>
                     )}
-                    <div
-                      className={`max-w-[72%] rounded-2xl px-3 py-2.5 text-[12px] leading-relaxed ${
-                        msg.role === "user"
-                          ? "text-white bg-gradient-to-br from-[#c7a6ff] to-[#f2a7d7]"
-                          : "bg-gradient-to-br from-[#fff0f7] to-[#f7e9ff] border border-[#f0d9ff] text-[#6d5f72]"
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
                   </div>
-                ))}
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#ffd6ea] via-[#cdbdff] to-[#ffeabf] grid place-items-center text-sm mr-1.5 shrink-0 self-end">
-                      {selectedCharacter?.avatarEmoji}
-                    </div>
-                    <div className="rounded-2xl px-4 py-3 bg-gradient-to-br from-[#fff0f7] to-[#f7e9ff] border border-[#f0d9ff]">
-                      <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#c7a8ff] animate-bounce [animation-delay:0ms]" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#c7a8ff] animate-bounce [animation-delay:150ms]" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#c7a8ff] animate-bounce [animation-delay:300ms]" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
+                  <p className="m-0 mt-1 truncate text-[11px] text-[#94859d]">
+                    {selectedPersona?.speech_style ||
+                      selectedCharacter.description ||
+                      "페르소나 말투 정보가 아직 없습니다."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={isLoadingGreeting || isSending}
+                  className="rounded-full border border-[#eadcf0] bg-white px-4 py-2 text-[16px] font-semibold text-[#8b69a3] shadow-[0_5px_14px_rgba(150,110,180,0.08)] disabled:opacity-50"
+                >
+                  초기화
+                </button>
               </div>
 
-              {/* Input */}
-              <div className="px-4 py-3 border-t border-[#eadcf0]">
-                <div className="flex gap-2 mb-2">
+              <div className="flex-1 overflow-y-auto px-5 py-4">
+                <div className="flex flex-col gap-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[78%] rounded-[18px] px-4 py-3 text-[13px] leading-7 ${
+                          message.role === "user"
+                            ? "bg-[#b56bcb] text-white shadow-[0_7px_16px_rgba(165,100,190,0.22)]"
+                            : "border border-[#efd5fa] bg-[#fff1ff] text-[#6d5f72]"
+                        }`}
+                      >
+                        {message.content}
+                        {message.tag && (
+                          <span className="ml-2 inline-flex rounded-full border border-[#b6e6ca] bg-[#e8f9ef] px-2 py-0.5 text-[10px] font-bold text-[#3d8a5e]">
+                            {message.tag}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(isLoadingGreeting || isSending) && (
+                    <div className="flex justify-start">
+                      <div className="rounded-[18px] border border-[#efd5fa] bg-[#fff1ff] px-4 py-3">
+                        <div className="flex gap-1">
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b56bcb]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b56bcb] [animation-delay:150ms]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b56bcb] [animation-delay:300ms]" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+
+              <div className="border-t border-[#eadcf0] px-5 py-4">
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
+                    onChange={(event) => setInputValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void handleSend();
                       }
                     }}
-                    placeholder={`${selectedCharacter?.name}에게 말을 걸어보세요...`}
-                    disabled={isLoading}
-                    className="flex-1 bg-[#faf8fc] border border-[#eadcf0] rounded-2xl text-[12px] text-[#74617a] px-3 py-2.5 outline-none focus:border-[#c7a8ff] disabled:opacity-50"
+                    placeholder={`${selectedCharacter.name}에게 테스트 질문을 입력하세요.`}
+                    disabled={chatDisabled}
+                    className="min-h-[50px] flex-1 rounded-[18px] border border-[#eadcf0] bg-[#fbf9fd] px-4 text-[16px] text-[#74617a] outline-none transition placeholder:text-[#b5aabc] focus:border-[#c7a8ff] disabled:opacity-50"
                   />
                   <button
                     type="button"
-                    onClick={handleSend}
-                    disabled={!inputValue.trim() || isLoading}
-                    className="rounded-full px-4 py-2.5 text-[12px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2] disabled:opacity-40"
+                    onClick={() => void handleSend()}
+                    disabled={!inputValue.trim() || chatDisabled}
+                    className="min-h-[50px] rounded-[22px] bg-[#d7b4e2] px-6 text-[16px] font-bold text-white transition hover:bg-[#c997d9] disabled:opacity-45"
                   >
                     전송
                   </button>
                 </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="rounded-full px-3.5 py-2 text-[11px] font-bold text-[#8b69a3] bg-white border border-[#eadcf0]"
-                  >
-                    다시 테스트
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      console.log("배포 승인:", selectedCharacterId)
-                    }
-                    className="rounded-full px-3.5 py-2 text-[11px] font-bold text-white bg-gradient-to-br from-[#c7a8ff] to-[#f6a9d2]"
-                  >
-                    배포 승인
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => console.log("반려:", selectedCharacterId)}
-                    className="rounded-full px-3.5 py-2 text-[11px] font-bold text-[#b04040] bg-white border border-[#f0c0c0]"
-                  >
-                    반려
-                  </button>
-                </div>
+                <p className="m-0 mt-3 text-[11px] text-[#94859d]">{statusText}</p>
               </div>
             </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center px-6 text-center text-[13px] text-[#94859d]">
+              왼쪽에서 동화책과 캐릭터를 선택하면 실제 챗봇 API 테스트를 시작합니다.
+            </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );
