@@ -168,7 +168,7 @@ export type BookPayload = {
 export type BookResponse = Omit<BookPayload, "content"> & {
   id: number;
   updated_at: string;
-  content: { content: string } | null;
+  content: { content: string; embed_status?: string } | null;
   character_count: number;
   featured_character_id: number | null;
 };
@@ -207,6 +207,9 @@ export const adminBooksApi = {
   list: (search?: string) => request<BookResponse[]>(withSearch("/api/admin/books", search)),
 
   detail: (id: number) => request<BookResponse>(`/api/admin/books/${id}`),
+
+  embed: (id: number) =>
+    request<BookResponse>(`/api/admin/books/${id}/embed`, { method: "POST" }),
 };
 
 export type CharacterItem = {

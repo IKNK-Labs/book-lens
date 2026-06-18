@@ -33,6 +33,7 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAutocompleting, setIsAutocompleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [embeddingBookId, setEmbeddingBookId] = useState<number | null>(null);
 
   useEffect(() => {
     let isCurrent = true;
@@ -135,7 +136,7 @@ export default function Page() {
         content: form.content,
       };
       const updated = await adminBooksApi.update(editingBook.id, payload);
-      const updatedBook = { ...updated, content: { content: form.content } };
+      const updatedBook = { ...updated, content: { content: form.content, embed_status: "" } };
       setBooks((prev) => prev.map((book) => (book.id === editingBook.id ? updatedBook : book)));
       closeModal();
       Swal.fire({ icon: "success", title: "수정되었습니다.", confirmButtonColor: "#c7a8ff" });
@@ -144,6 +145,126 @@ export default function Page() {
       Swal.fire({ icon: "error", title: "저장 실패", text: message, confirmButtonColor: "#c7a8ff" });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleEmbed = async (book: BookResponse) => {
+    const startedAt = Date.now();
+    let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+    const updateProgress = (progress: number, message: string) => {
+      const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
+      const progressBar = document.getElementById("embedding-progress-bar");
+      const progressText = document.getElementById("embedding-progress-text");
+      const progressMessage = document.getElementById("embedding-progress-message");
+
+      if (progressBar) progressBar.style.width = `${safeProgress}%`;
+      if (progressText) progressText.textContent = `${safeProgress}%`;
+      if (progressMessage) progressMessage.textContent = message;
+    };
+
+    const startProgressTimer = () => {
+      progressTimer = setInterval(() => {
+        const elapsedSeconds = (Date.now() - startedAt) / 1000;
+        const progress = Math.min(92, 12 + elapsedSeconds * 0.8);
+        updateProgress(progress, "본문을 나누고 벡터를 생성하는 중입니다.");
+      }, 1000);
+    };
+
+    const stopProgressTimer = () => {
+      if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+      }
+    };
+
+    const waitForServerCompletion = async () => {
+      const maxWaitMs = 10 * 60 * 1000;
+      const pollStartedAt = Date.now();
+
+      updateProgress(93, "서버에서 계속 처리 중입니다. 완료 상태를 확인하고 있습니다.");
+
+      while (Date.now() - pollStartedAt < maxWaitMs) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        const detail = await adminBooksApi.detail(book.id);
+        setBooks((prev) => prev.map((item) => (item.id === book.id ? detail : item)));
+
+        if (detail.content?.embed_status === "completed") {
+          return detail;
+        }
+
+        const elapsedRatio = (Date.now() - pollStartedAt) / maxWaitMs;
+        updateProgress(93 + elapsedRatio * 6, "서버 작업이 끝나는지 확인하고 있습니다.");
+      }
+
+      throw new Error("embedding poll timeout");
+    };
+
+    const escapedTitle = book.title
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
+    setEmbeddingBookId(book.id);
+    Swal.fire({
+      title: "임베딩 중",
+      html: `
+        <div style="text-align:left">
+          <p style="margin:0 0 12px;color:#7d5ba6;font-size:13px;font-weight:700;">${escapedTitle}</p>
+          <div style="height:10px;border-radius:999px;background:#f3e8fb;overflow:hidden;">
+            <div id="embedding-progress-bar" style="height:100%;width:8%;border-radius:999px;background:linear-gradient(90deg,#9b6dff,#f6a9d2);transition:width .35s ease;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;color:#8b69a3;font-size:12px;font-weight:700;">
+            <span id="embedding-progress-message">임베딩을 시작하고 있습니다.</span>
+            <span id="embedding-progress-text">8%</span>
+          </div>
+        </div>
+      `,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        updateProgress(8, "임베딩을 시작하고 있습니다.");
+        startProgressTimer();
+      },
+    });
+
+    try {
+      const updated = await adminBooksApi.embed(book.id);
+      stopProgressTimer();
+      updateProgress(100, "임베딩이 완료되었습니다.");
+      setBooks((prev) => prev.map((item) => (item.id === book.id ? updated : item)));
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      Swal.fire({
+        icon: "success",
+        title: "임베딩 완료",
+        text: `${book.title} 임베딩이 완료되었습니다.`,
+        confirmButtonColor: "#c7a8ff",
+      });
+    } catch (err) {
+      stopProgressTimer();
+      try {
+        const completed = await waitForServerCompletion();
+        updateProgress(100, "임베딩이 완료되었습니다.");
+        setBooks((prev) => prev.map((item) => (item.id === book.id ? completed : item)));
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        Swal.fire({
+          icon: "success",
+          title: "임베딩 완료",
+          text: `${book.title} 임베딩이 완료되었습니다.`,
+          confirmButtonColor: "#c7a8ff",
+        });
+      } catch {
+        const message = err instanceof ApiError
+          ? "임베딩 확인 시간이 초과되었습니다. 서버 작업이 끝난 뒤 목록을 새로고침해 주세요."
+          : "서버 응답이 지연되고 있습니다. 서버 작업이 끝난 뒤 목록을 새로고침해 주세요.";
+        Swal.fire({ icon: "error", title: "임베딩 확인 필요", text: message, confirmButtonColor: "#c7a8ff" });
+      }
+    } finally {
+      stopProgressTimer();
+      setEmbeddingBookId(null);
     }
   };
 
@@ -192,6 +313,9 @@ export default function Page() {
                 publisher={book.publisher}
                 isbn={book.isbn ?? undefined}
                 description={book.description ?? ""}
+                isEmbedded={book.content?.embed_status === "completed"}
+                isEmbedding={embeddingBookId === book.id}
+                onEmbed={() => handleEmbed(book)}
                 onEdit={() => openEditModal(book)}
               />
             ))}

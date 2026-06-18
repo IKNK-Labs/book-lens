@@ -6,7 +6,8 @@ from .models import Book, BookContent
 class BookContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookContent
-        fields = ["content"]
+        fields = ["content", "embed_status"]
+        read_only_fields = ["embed_status"]
 
 
 class BookSerializer(serializers.ModelSerializer):
@@ -61,6 +62,7 @@ class BookSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         if content_data is not None:
+            content_data["embed_status"] = ""
             content, _created = BookContent.objects.update_or_create(
                 book=instance,
                 defaults=content_data,
