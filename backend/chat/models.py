@@ -2,6 +2,7 @@ import uuid
 
 from django.db import models
 
+from books.models import Book
 from characters.models import Character
 
 
@@ -76,3 +77,58 @@ class ConversationLog(models.Model):
 
     def __str__(self):
         return f"[{self.role}] {self.message[:60]}"
+
+
+class ConversationFeedback(models.Model):
+    """User reaction for a chatbot answer."""
+
+    FEEDBACK_LIKE = "like"
+    FEEDBACK_DISLIKE = "dislike"
+    FEEDBACK_REPORT = "report"
+    FEEDBACK_CHOICES = [
+        (FEEDBACK_LIKE, "Like"),
+        (FEEDBACK_DISLIKE, "Dislike"),
+        (FEEDBACK_REPORT, "Report"),
+    ]
+
+    id = models.UUIDField(primary_key=True)
+    conversation_log = models.ForeignKey(
+        ConversationLog,
+        on_delete=models.CASCADE,
+        related_name="feedback",
+        db_column="conversation_log_id",
+    )
+    user = models.ForeignKey(
+        AppUser,
+        on_delete=models.CASCADE,
+        related_name="conversation_feedback",
+        db_column="user_id",
+    )
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="conversation_feedback",
+        db_column="character_id",
+    )
+    book = models.ForeignKey(
+        Book,
+        on_delete=models.CASCADE,
+        related_name="conversation_feedback",
+        db_column="book_id",
+    )
+    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_CHOICES)
+    reason = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "conversation_feedback"
+        managed = False
+        constraints = [
+            models.UniqueConstraint(
+                fields=["conversation_log", "user"],
+                name="conversation_feedback_one_per_user",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.feedback_type} for log {self.conversation_log_id}"
