@@ -26,6 +26,8 @@
 - The repository does not create `forbidden_rules` with a Django migration.
 - If the external table is missing, `/api/admin/forbidden-rules` returns 503 instead of exposing a database traceback.
 - Schema creation for `forbidden_rules` remains an environment/setup task and is not changed in this branch.
+- See `docs/FORBIDDEN_RULES_SCHEMA.md` for the minimal external table SQL example.
+- `/api/admin/*` authorization is enforced by the frontend Supabase admin session guard before proxying to Django; direct public exposure of Django admin APIs requires a stronger backend JWT verification design.
 ## Supabase data connection rules
 
 - Supabase Auth는 실제 로그인/회원가입을 담당한다.

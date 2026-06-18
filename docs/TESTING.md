@@ -54,8 +54,8 @@
 ## Moderation admin checks
 
 - `forbidden_rules` is an unmanaged external table.
-- When the table exists, `/api/admin/forbidden-rules` requires an authenticated Django staff/admin user.
-- When the table is missing, the endpoint should return 503 instead of an unhandled database traceback.
+- When the table exists, `/api/admin/forbidden-rules` is protected by the frontend Supabase admin session guard before proxying to Django.
+- When the table is missing, the endpoint should return 503 instead of an unhandled database traceback, and the admin UI should show a table-not-configured message.
 - Do not create or modify the `forbidden_rules` schema during routine frontend/auth smoke tests.
 ## Prohibited during testing
 

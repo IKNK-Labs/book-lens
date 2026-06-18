@@ -9,8 +9,20 @@ import {
 const ADMIN_LOGIN_PATH = "/admin/login";
 const USER_PROTECTED_PATHS = ["/settings", "/chat"];
 
-function isAdminRoute(pathname: string) {
+function isAdminPageRoute(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
+function isAdminApiRoute(pathname: string) {
+  return pathname === "/api/admin" || pathname.startsWith("/api/admin/");
+}
+
+function isAdminRoute(pathname: string) {
+  return isAdminPageRoute(pathname) || isAdminApiRoute(pathname);
+}
+
+function adminApiError(status: number, message: string) {
+  return NextResponse.json({ error: message }, { status });
 }
 
 function isUserProtectedRoute(pathname: string) {
@@ -63,8 +75,12 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (isUserProtectedRoute(pathname) || isAdminRoute(pathname)) {
+      if (isAdminApiRoute(pathname)) {
+        return adminApiError(503, getMissingSupabaseConfigMessage());
+      }
+
       const loginUrl = new URL(
-        isAdminRoute(pathname) ? ADMIN_LOGIN_PATH : "/login",
+        isAdminPageRoute(pathname) ? ADMIN_LOGIN_PATH : "/login",
         request.url,
       );
       loginUrl.searchParams.set("error", getMissingSupabaseConfigMessage());
@@ -128,6 +144,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!userId) {
+    if (isAdminApiRoute(pathname)) {
+      return adminApiError(401, "관리자 로그인이 필요합니다");
+    }
+
     return redirectWithCookies(
       supabaseResponse,
       new URL(ADMIN_LOGIN_PATH, request.url),
@@ -135,6 +155,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!(await isActiveAdmin(supabase, userId))) {
+    if (isAdminApiRoute(pathname)) {
+      return adminApiError(403, "관리자 권한이 필요합니다");
+    }
+
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "관리자 권한이 필요합니다");
 
