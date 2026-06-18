@@ -6,8 +6,32 @@ from rest_framework.views import APIView
 
 from characters.models import Character, Persona
 
-from .models import ConversationLog
+from .models import AppUser, ConversationLog
 from .pipeline import run_chat
+
+
+def resolve_app_user_id(raw_user_id):
+    """Return app_user.id from either app_user.id or auth.users.id."""
+
+    if raw_user_id in (None, ""):
+        return ""
+
+    value = str(raw_user_id).strip()
+    if not value:
+        return ""
+
+    if value.isdigit():
+        return value
+
+    try:
+        auth_user_id = uuid.UUID(value)
+    except ValueError:
+        return ""
+
+    try:
+        return str(AppUser.objects.only("id").get(auth_user_id=auth_user_id).id)
+    except AppUser.DoesNotExist:
+        return ""
 
 
 class ChatView(APIView):
@@ -26,7 +50,7 @@ class ChatView(APIView):
 
         # Supabase auth.users.id는 JWT에서 추출하는 것이 이상적이나,
         # users 앱 구현 전까지는 요청 바디의 user_id를 사용한다.
-        user_id = request.data.get("user_id", "")
+        user_id = resolve_app_user_id(request.data.get("user_id", ""))
 
         try:
             result = run_chat(
@@ -41,7 +65,7 @@ class ChatView(APIView):
 
 
 class GreetingView(APIView):
-    """GET /api/chat/greeting/?character_id=<int>[&user_id=<uuid>]
+    """GET /api/chat/greeting/?character_id=<int>[&user_id=<app_user.id|uuid>]
 
     채팅 화면 진입 시 캐릭터 인사말과 재방문 여부를 반환한다.
     """
@@ -69,15 +93,11 @@ class GreetingView(APIView):
 
         # has_history: user_id 있을 때만 이전 대화 여부 확인
         has_history = False
-        user_id_str = request.query_params.get("user_id", "")
-        if user_id_str:
-            try:
-                user_uuid = uuid.UUID(user_id_str)
-                has_history = ConversationLog.objects.filter(
-                    character_id=character.id, user_id=user_uuid
-                ).exists()
-            except (ValueError, Exception):
-                pass
+        app_user_id = resolve_app_user_id(request.query_params.get("user_id", ""))
+        if app_user_id:
+            has_history = ConversationLog.objects.filter(
+                character_id=character.id, user_id=int(app_user_id)
+            ).exists()
 
         return Response(
             {

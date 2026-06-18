@@ -50,9 +50,21 @@ _DEFAULT_FALLBACK = "그 이야기는 제가 답하기 어려워요. 다른 것�
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
+def _coerce_app_user_id(value: str) -> int | None:
+    """Parse the internal app_user.id carried through chat state."""
+
+    if not value:
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class ChatState(TypedDict):
     # 요청 입력
-    user_id: str        # Supabase auth.users.id (UUID 문자열), 없으면 빈 문자열
+    user_id: str        # app_user.id 문자열, 없으면 빈 문자열
     character_id: int
     user_message: str
     # load_context_node에서 채워짐
@@ -133,12 +145,10 @@ def load_context_node(state: ChatState) -> dict:
 
     # UserPreference 로드 (없으면 빈 dict)
     user_preference: dict = {}
-    user_id_str = state.get("user_id", "")
-    if user_id_str:
+    app_user_id = _coerce_app_user_id(state.get("user_id", ""))
+    if app_user_id is not None:
         try:
-            # user_id는 auth.users.id(UUID)이므로 app_user 연동 전까지는
-            # UUID를 int로 직접 쓸 수 없음. 조회 실패 시 빈 dict 유지.
-            pref = UserPreference.objects.get(user_id=user_id_str)
+            pref = UserPreference.objects.get(user_id=app_user_id)
             user_preference = {
                 "difficulty_level": pref.difficulty_level or "",
                 "response_length": pref.response_length or "",
@@ -407,16 +417,43 @@ def filter_response_node(state: ChatState) -> dict:
 # ─── 노드 1b: 대화 히스토리 로드 ─────────────────────────────────────────────
 
 def load_history_node(state: ChatState) -> dict:
-    # conversation_log.user_id 는 bigint(app_user.id)이고 NOT NULL.
-    # users 앱 미구현 구간에는 히스토리 조회를 건너뛴다.
-    return {"conversation_history": []}
+    app_user_id = _coerce_app_user_id(state.get("user_id", ""))
+    if app_user_id is None:
+        return {"conversation_history": []}
+
+    logs = (
+        ConversationLog.objects
+        .filter(user_id=app_user_id, character_id=state["character_id"])
+        .order_by("-created_at")[:HISTORY_LIMIT]
+    )
+    history = [
+        {"role": log.role, "message": log.message}
+        for log in reversed(list(logs))
+    ]
+    return {"conversation_history": history}
 
 
 # ─── 노드 7: 대화 기록 저장 ───────────────────────────────────────────────────
 
 def save_conversation_node(state: ChatState) -> dict:
-    # conversation_log.user_id 는 bigint(app_user.id) NOT NULL.
-    # users 앱 구현 전까지는 저장을 생략한다.
+    app_user_id = _coerce_app_user_id(state.get("user_id", ""))
+    if app_user_id is None:
+        return {}
+
+    ConversationLog.objects.create(
+        user_id=app_user_id,
+        character_id=state["character_id"],
+        role=ConversationLog.ROLE_USER,
+        message=state["user_message"],
+        is_flagged=state.get("category") == "forbidden",
+    )
+    ConversationLog.objects.create(
+        user_id=app_user_id,
+        character_id=state["character_id"],
+        role=ConversationLog.ROLE_ASSISTANT,
+        message=state["response"],
+        is_flagged=state.get("is_flagged", False),
+    )
     return {}
 
 

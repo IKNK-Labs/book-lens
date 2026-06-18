@@ -12,6 +12,28 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
+            name="AppUser",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("email", models.CharField(max_length=255)),
+                ("auth_user_id", models.UUIDField(unique=True)),
+                ("nickname", models.CharField(max_length=50)),
+                ("created_at", models.DateTimeField()),
+            ],
+            options={
+                "db_table": "app_user",
+                "managed": False,
+            },
+        ),
+        migrations.CreateModel(
             name="ConversationLog",
             fields=[
                 (
@@ -23,7 +45,15 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("user_id", models.UUIDField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        db_column="user_id",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="conversation_logs",
+                        to="chat.appuser",
+                    ),
+                ),
                 (
                     "character",
                     models.ForeignKey(
