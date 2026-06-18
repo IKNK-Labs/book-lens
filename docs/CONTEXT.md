@@ -16,7 +16,7 @@
 - 홈의 최근 대화/인기 캐릭터 mock 카드는 제거됐고, 실제 연동 전까지 빈 상태/안내 UI를 표시함.
 - `/books`와 `/books/{id}`는 비로그인 공개 경로이며 실제 `/api/books` DB 목록/검색/상세 응답을 사용함.
 - `/settings`, `/chat`, `/chat/{id}`는 로그인 보호 경로로 유지함.
-- `/chat/{id}`는 실제 conversation API 미연동 상태이므로 mock 캐릭터/대화 대신 준비 중 UI를 표시함.
+- `/chat/{id}`는 `chatApi.greeting`/`chatApi.send`로 실제 캐릭터 greeting/대화 API와 연동됨 (`feature/ish`의 `CharacterChatShell.tsx` 반영).
 - `vector-search`는 request-time FlagEmbedding lazy import crash를 피하기 위해 `BGE_M3_PRELOAD` 기반 startup preload를 지원함.
 - 로컬 Windows/CPU 환경에서 `vector-search`를 검증할 때는 `BGE_M3_PRELOAD=import`, `BGE_M3_DEVICE=cpu`를 사용함.
 
