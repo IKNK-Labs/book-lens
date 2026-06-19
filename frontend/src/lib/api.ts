@@ -267,15 +267,30 @@ export type CharacterItem = {
 
 export type GreetingResponse = {
   greeting: string;
+  assistant_log_id: string;
   character_name: string;
+  character_role: string | null;
   character_emoji: string | null;
   character_profile_image_url: string | null;
+  book_id: number;
+  book_title: string;
   has_history: boolean;
 };
 
 export type ChatSendResponse = {
   response: string;
   is_flagged: boolean;
+  assistant_log_id: string;
+};
+
+export type FeedbackType = "like" | "dislike" | "report";
+
+export type ConversationFeedbackResponse = {
+  id: string;
+  conversation_log_id: number;
+  feedback_type: FeedbackType;
+  reason: string | null;
+  created: boolean;
 };
 
 export const booksApi = {
@@ -308,5 +323,16 @@ export const chatApi = {
         message,
         ...(userId ? { user_id: userId } : {}),
       }),
+    }),
+
+  feedback: (payload: {
+    conversation_log_id: string;
+    feedback_type: FeedbackType;
+    reason?: string;
+    user_id?: string;
+  }) =>
+    request<ConversationFeedbackResponse>("/api/chat/feedback", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
 };

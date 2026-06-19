@@ -80,6 +80,7 @@ class ChatState(TypedDict):
     # 최종 결과
     response: str
     is_flagged: bool
+    assistant_log_id: str
 
 
 # ─── Gemini 클라이언트 ────────────────────────────────────────────────────────
@@ -447,14 +448,14 @@ def save_conversation_node(state: ChatState) -> dict:
         message=state["user_message"],
         is_flagged=state.get("category") == "forbidden",
     )
-    ConversationLog.objects.create(
+    assistant_log = ConversationLog.objects.create(
         user_id=app_user_id,
         character_id=state["character_id"],
         role=ConversationLog.ROLE_ASSISTANT,
         message=state["response"],
         is_flagged=state.get("is_flagged", False),
     )
-    return {}
+    return {"assistant_log_id": str(assistant_log.id)}
 
 
 # ─── 그래프 조립 ──────────────────────────────────────────────────────────────
@@ -524,6 +525,7 @@ def run_chat(
         "system_prompt": "",
         "response": "",
         "is_flagged": False,
+        "assistant_log_id": "",
     }
 
     final_state = chat_pipeline.invoke(initial_state)
@@ -531,4 +533,5 @@ def run_chat(
     return {
         "response": final_state["response"],
         "is_flagged": final_state.get("is_flagged", False),
+        "assistant_log_id": final_state.get("assistant_log_id", ""),
     }

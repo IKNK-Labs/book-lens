@@ -6,20 +6,19 @@ import { ApiError, booksApi, type CharacterItem } from "../../lib/api";
 import { Card } from "../ui/Card";
 
 export function CharacterSelectShell({ bookId }: { bookId: string }) {
+  const numericBookId = Number(bookId);
+  const hasValidBookId = Boolean(numericBookId);
   const [characters, setCharacters] = useState<CharacterItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(hasValidBookId);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const id = Number(bookId);
-    if (!id) {
-      setError("잘못된 도서 ID입니다.");
-      setIsLoading(false);
+    if (!hasValidBookId) {
       return;
     }
 
     booksApi
-      .characters(id)
+      .characters(numericBookId)
       .then((data) => setCharacters(data))
       .catch((err) => {
         if (err instanceof ApiError && err.status === 404) {
@@ -29,7 +28,15 @@ export function CharacterSelectShell({ bookId }: { bookId: string }) {
         }
       })
       .finally(() => setIsLoading(false));
-  }, [bookId]);
+  }, [hasValidBookId, numericBookId]);
+
+  if (!hasValidBookId) {
+    return (
+      <Card>
+        <p className="text-sm text-[var(--muted)]">잘못된 도서 ID입니다.</p>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -62,19 +69,19 @@ export function CharacterSelectShell({ bookId }: { bookId: string }) {
         <h1 className="text-2xl font-black tracking-[-0.04em] text-[var(--accent-strong)]">캐릭터 선택</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">대화하고 싶은 캐릭터를 선택하세요.</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {characters.map((character) => (
           <Link
             key={character.id}
             href={`/chat/${character.id}`}
-            className="block rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--shadow)] transition hover:border-[var(--accent)] hover:shadow-lg"
+            className="block rounded-[28px] border border-[var(--line)] bg-[var(--surface)] p-7 shadow-[var(--shadow)] transition hover:border-[var(--accent)] hover:shadow-lg"
           >
-            <div className="h-24 overflow-hidden rounded-[20px]">
+            <div className="aspect-[4/5] min-h-[280px] overflow-hidden rounded-[24px] bg-[var(--surface-soft)] sm:min-h-[320px]">
               {character.profile_image_url ? (
                 <img
                   src={character.profile_image_url}
                   alt={character.name}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               ) : (
                 <div className="grid h-full place-items-center bg-gradient-to-br from-[var(--surface-soft)] via-[var(--accent-soft)] to-[var(--surface-muted)] text-5xl">
