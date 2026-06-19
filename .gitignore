@@ -69,3 +69,7 @@ supabase/.temp/
 supabase/.branches/
 supabase/.env
 supabase/.env.local
+
+*.lock
+
+.venv/

@@ -156,6 +156,50 @@ export const adminForbiddenRulesApi = {
     request<void>(`/api/admin/forbidden-rules/${id}`, { method: "DELETE" }),
 };
 
+export type AdminDashboardResponse = {
+  metrics: {
+    today_conversations: number;
+    active_users: number;
+    review_needed: number;
+    total_books: number;
+    total_characters: number;
+  };
+  top_characters: {
+    id: number;
+    name: string;
+    role: string | null;
+    emoji: string | null;
+    profile_image_url: string | null;
+    book_title: string;
+    conversation_count: number;
+  }[];
+  top_books: {
+    id: number;
+    title: string;
+    author: string;
+    conversation_count: number;
+  }[];
+  feedback: {
+    like_count: number;
+    dislike_count: number;
+    report_count: number;
+  };
+  persona_status: {
+    approved: number;
+    draft: number;
+    rejected: number;
+  };
+  safety: {
+    flagged_today: number;
+    active_rules: number;
+    reports: number;
+  };
+};
+
+export const adminDashboardApi = {
+  detail: () => request<AdminDashboardResponse>("/api/admin/dashboard"),
+};
+
 export type BookPayload = {
   isbn: string | null;
   title: string;
