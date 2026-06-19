@@ -51,8 +51,18 @@ class ConversationLog(models.Model):
         (ROLE_ASSISTANT, "Assistant"),
     ]
 
-    user_id = models.BigIntegerField()
-    character_id = models.BigIntegerField()
+    user = models.ForeignKey(
+        AppUser,
+        on_delete=models.CASCADE,
+        related_name="conversation_logs",
+        db_column="user_id",
+    )
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="conversation_logs",
+        db_column="character_id",
+    )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     message = models.TextField()
     is_flagged = models.BooleanField(default=False)
