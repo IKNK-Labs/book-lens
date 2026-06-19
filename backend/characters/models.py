@@ -47,7 +47,7 @@ class Persona(models.Model):
     user_role = models.CharField(max_length=100, blank=True, null=True)
     user_relationship = models.CharField(max_length=100, blank=True, null=True)
     system_prompt = models.TextField(blank=True, null=True)
-    approved_status = models.CharField(max_length=50, blank=True, null=True)
+    approved_status = models.CharField(max_length=50, blank=True, null=True, default="draft")
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
 
