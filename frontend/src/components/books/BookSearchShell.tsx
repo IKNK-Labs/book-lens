@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type { Book } from "../../data/mock";
 import { mockGenreFilters } from "../../data/mock";
 import { booksApi, type BookVectorSearchResult } from "../../lib/api";
@@ -10,6 +10,13 @@ import { Card } from "../ui/Card";
 import { Chip } from "../ui/Chip";
 import { SectionHeader } from "../ui/SectionHeader";
 import { BookCard } from "./BookCard";
+
+const BOOKS_PER_PAGE = 8;
+
+function formatSimilarity(distance: number) {
+  const score = Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
+  return `${score}%`;
+}
 
 export function BookSearchShell({
   isMember = false,
@@ -27,6 +34,14 @@ export function BookSearchShell({
   const [isVectorLoading, setIsVectorLoading] = useState(false);
   const [error, setError] = useState("");
   const [vectorError, setVectorError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(books.length / BOOKS_PER_PAGE));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const pagedBooks = useMemo(() => {
+    const start = (effectivePage - 1) * BOOKS_PER_PAGE;
+    return books.slice(start, start + BOOKS_PER_PAGE);
+  }, [books, effectivePage]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -97,7 +112,10 @@ export function BookSearchShell({
               placeholder="미녀와 야수, 모험, 용기..."
               aria-label="동화 검색어"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
           <button
@@ -105,7 +123,7 @@ export function BookSearchShell({
             className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-black text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isVectorLoading}
           >
-            {isVectorLoading ? "검색 중" : "의미 검색"}
+            {isVectorLoading ? "검색 중" : "내용 검색"}
           </button>
         </form>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -133,7 +151,7 @@ export function BookSearchShell({
       ) : null}
       {vectorResults.length > 0 ? (
         <section className="grid gap-3">
-          <h2 className="text-base font-black text-[var(--foreground)]">의미 검색 결과</h2>
+          <h2 className="text-base font-black text-[var(--foreground)]">내용 검색 결과</h2>
           <div className="grid gap-3">
             {vectorResults.map((result) => (
               <Link
@@ -144,11 +162,11 @@ export function BookSearchShell({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-black text-[var(--accent-strong)]">{result.title}</p>
                   <span className="text-xs font-bold text-[var(--muted)]">
-                    거리 {result.distance.toFixed(4)}
+                    유사도 {formatSimilarity(result.distance)}
                   </span>
                 </div>
                 <p className="mt-1 text-xs font-bold text-[var(--muted)]">
-                  {result.author} · {result.publisher} · chunk {result.chunk_index + 1}
+                  {result.author} · {result.publisher}
                 </p>
                 <p className="mt-3 line-clamp-3 text-sm leading-6 text-[var(--muted)]">
                   {result.content}
@@ -163,11 +181,48 @@ export function BookSearchShell({
           도서 목록을 불러오는 중입니다.
         </p>
       ) : books.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {books.map((book) => (
-            <BookCard key={book.id} book={book} isMember={isMember} isPreview={isPreview} />
-          ))}
-        </div>
+        <section className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {pagedBooks.map((book) => (
+              <BookCard key={book.id} book={book} isMember={isMember} isPreview={isPreview} />
+            ))}
+          </div>
+          {totalPages > 1 ? (
+            <nav className="flex flex-wrap items-center justify-center gap-2" aria-label="도서 목록 페이지">
+              <button
+                type="button"
+                className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-black text-[var(--accent-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={effectivePage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                이전
+              </button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  className={`grid h-10 w-10 place-items-center rounded-full border text-sm font-black transition ${
+                    effectivePage === page
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                      : "border-[var(--line)] text-[var(--accent-strong)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  }`}
+                  aria-current={effectivePage === page ? "page" : undefined}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-black text-[var(--accent-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={effectivePage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                다음
+              </button>
+            </nav>
+          ) : null}
+        </section>
       ) : (
         <p className="rounded-3xl border border-[var(--line)] bg-[var(--surface-soft)] px-5 py-4 text-sm font-bold text-[var(--accent-strong)]">
           조건에 맞는 동화가 없습니다.

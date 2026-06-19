@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AppShell } from "../components/layout/AppShell";
 import { BookCard } from "../components/books/BookCard";
 import { Card } from "../components/ui/Card";
@@ -69,10 +71,18 @@ export default async function Page({ searchParams }: PageProps) {
         </section>
 
         <section>
-          <SectionHeader
-            title="지금 볼 수 있는 동화"
-            description="등록된 동화를 살펴보고 마음에 드는 이야기를 이어가 보세요."
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <SectionHeader
+              title="지금 볼 수 있는 동화"
+              description="등록된 동화를 살펴보고 마음에 드는 이야기를 이어가 보세요."
+            />
+            <Link
+              href="/books?search="
+              className="shrink-0 self-start rounded-full border border-[var(--line)] px-4 py-2 text-sm font-black text-[var(--accent-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              전체 동화 보기
+            </Link>
+          </div>
           {featuredBooks.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {featuredBooks.map((book) => (
