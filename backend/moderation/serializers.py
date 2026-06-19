@@ -24,4 +24,3 @@ class ForbiddenRuleSerializer(serializers.ModelSerializer):
         if not value.strip():
             raise serializers.ValidationError("pattern is required.")
         return value.strip()
-

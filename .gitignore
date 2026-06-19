@@ -23,7 +23,8 @@ rad.json
 TestResults.xml
 
 .env
-.env.local
+.env.*
+!.env.example
 node_modules/
 
 __pycache__/
@@ -39,14 +40,13 @@ CLAUDE.local.md
 .newman/
 newman/
 .postman/
-postman/
-Postman/
 .postman-cli/
 postman-cli/
 .postman-mcp/
 postman-mcp/
-*.postman_collection.json
 *.postman_environment.json
+postman/*.local.json
+postman/*.secret.json
 .mcp.json
 mcp.json
 .mcp/

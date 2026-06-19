@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server";
 import { getSafeNext } from "@/lib/authNext";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getMissingSupabaseConfigMessage,
+  hasSupabaseConfig,
+} from "@/lib/supabase/env";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = getSafeNext(requestUrl.searchParams.get("next"));
+
+  if (!hasSupabaseConfig()) {
+    return NextResponse.redirect(
+      new URL(
+        `/login?error=${encodeURIComponent(getMissingSupabaseConfigMessage())}&next=${encodeURIComponent(next)}`,
+        requestUrl.origin,
+      ),
+    );
+  }
 
   if (code) {
     const supabase = await createClient();

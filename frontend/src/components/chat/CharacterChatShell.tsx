@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { chatApi, type GreetingResponse } from "../../lib/api";
+import { createClient } from "../../lib/supabase/client";
 import { Card } from "../ui/Card";
 import { ChatBubble } from "./ChatBubble";
 import { ChatInputBar } from "./ChatInputBar";
@@ -48,6 +49,7 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [userId, setUserId] = useState<string | undefined>(undefined);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,19 +58,25 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
       return;
     }
 
-    chatApi
-      .greeting(numericId)
-      .then((info) => {
-        setCharacterInfo(info);
-        setMessages([
-          {
-            id: "greeting",
-            role: "assistant",
-            content: info.greeting,
-          },
-        ]);
+    let cancelled = false;
+
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        const uid = data.user?.id;
+        setUserId(uid);
+        return chatApi.greeting(numericId, uid);
       })
-      .catch(() => setLoadError("캐릭터 정보를 불러오지 못했습니다."));
+      .then((info) => {
+        if (cancelled) return;
+        setCharacterInfo(info);
+        setMessages([{ id: "greeting", role: "assistant", content: info.greeting }]);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("캐릭터 정보를 불러오지 못했습니다.");
+      });
+
+    return () => { cancelled = true; };
   }, [numericId]);
 
   useEffect(() => {
@@ -85,7 +93,7 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
     setIsSending(true);
 
     try {
-      const res = await chatApi.send(numericId, text);
+      const res = await chatApi.send(numericId, text, userId);
       const assistantMsg: ChatMessage = {
         id: `a-${Date.now()}`,
         role: "assistant",

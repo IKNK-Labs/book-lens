@@ -12,6 +12,9 @@ BGE_M3_DEFAULT_BATCH_SIZE = 12
 BGE_M3_DEFAULT_MAX_LENGTH = 8192
 
 _model: Any | None = None
+_model_class: Any | None = None
+_dependencies_preloaded = False
+_model_preloaded = False
 
 
 class EmbeddingError(RuntimeError):
@@ -50,14 +53,37 @@ def get_embedding_model() -> Any:
     global _model
 
     if _model is None:
-        from FlagEmbedding import BGEM3FlagModel
+        model_kwargs: dict[str, Any] = {
+            "use_fp16": _env_bool("BGE_M3_USE_FP16", False),
+        }
+        device = os.environ.get("BGE_M3_DEVICE")
+        if device:
+            model_kwargs["devices"] = device
 
-        _model = BGEM3FlagModel(
-            BGE_M3_MODEL_NAME,
-            use_fp16=_env_bool("BGE_M3_USE_FP16", False),
-        )
+        _model = _get_model_class()(BGE_M3_MODEL_NAME, **model_kwargs)
 
     return _model
+
+
+def preload_embedding_dependencies(mode: str | None = None) -> None:
+    """Preload BGE-M3 native dependencies before request-time execution."""
+    global _dependencies_preloaded, _model_preloaded
+
+    preload_mode = _normalize_preload_mode(
+        mode if mode is not None else os.environ.get("BGE_M3_PRELOAD")
+    )
+    if preload_mode is None:
+        return
+
+    if not _dependencies_preloaded:
+        import pyarrow.dataset  # noqa: F401
+
+        _get_model_class()
+        _dependencies_preloaded = True
+
+    if preload_mode == "model" and not _model_preloaded:
+        get_embedding_model()
+        _model_preloaded = True
 
 
 def reset_embedding_model() -> None:
@@ -89,6 +115,30 @@ def _coerce_vector(vector: Any) -> list[float]:
         )
 
     return values
+
+
+def _get_model_class() -> Any:
+    global _model_class
+
+    if _model_class is None:
+        from FlagEmbedding import BGEM3FlagModel
+
+        _model_class = BGEM3FlagModel
+
+    return _model_class
+
+
+def _normalize_preload_mode(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    normalized = value.strip().lower()
+    if normalized in {"", "0", "false", "off", "no"}:
+        return None
+    if normalized in {"import", "model"}:
+        return normalized
+
+    raise ValueError("BGE_M3_PRELOAD must be one of: off, false, 0, import, model")
 
 
 def _env_bool(name: str, default: bool) -> bool:

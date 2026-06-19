@@ -1,12 +1,26 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
+import { getSafeNext } from "@/lib/authNext";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getMissingSupabaseConfigMessage,
+  hasSupabaseConfig,
+} from "@/lib/supabase/env";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type") as EmailOtpType | null;
-  const next = requestUrl.searchParams.get("next") ?? "/books";
+  const next = getSafeNext(requestUrl.searchParams.get("next"), "/books");
+
+  if (!hasSupabaseConfig()) {
+    return NextResponse.redirect(
+      new URL(
+        `/login?error=${encodeURIComponent(getMissingSupabaseConfigMessage())}&next=${encodeURIComponent(next)}`,
+        requestUrl.origin,
+      ),
+    );
+  }
 
   if (tokenHash && type) {
     const supabase = await createClient();

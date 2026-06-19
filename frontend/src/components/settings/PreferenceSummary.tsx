@@ -1,18 +1,20 @@
-import { mockPreference } from "../../data/mock";
+import type { UserPreference } from "../../lib/settings/preferences";
 import { Card } from "../ui/Card";
 
-const rows = [
-  ["대상 연령대", mockPreference.ageGroup],
-  ["읽기/이해 수준", mockPreference.difficultyLevel],
-  ["응답 길이", mockPreference.responseLength],
-  ["설명 방식", mockPreference.explanationStyle],
-  ["관심 주제", mockPreference.interests.join(", ")],
-];
+type PreferenceSummaryProps = {
+  preference: UserPreference;
+};
 
-export function PreferenceSummary() {
+export function PreferenceSummary({ preference }: PreferenceSummaryProps) {
+  const rows = [
+    ["연령대", preference.ageGroup],
+    ["읽기/이해 수준", preference.difficultyLevel],
+    ["응답 길이", preference.responseLength],
+  ];
+
   return (
     <Card className="lg:sticky lg:top-24">
-      <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">현재 설정 요약</h2>
+      <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--accent-strong)]">저장된 설정 요약</h2>
       <div className="mt-4 grid gap-3">
         {rows.map(([label, value]) => (
           <div key={label} className="rounded-2xl border border-[var(--line)] bg-[var(--surface-soft)] p-3">
@@ -21,14 +23,9 @@ export function PreferenceSummary() {
           </div>
         ))}
       </div>
-      <div className="mt-5 grid gap-2">
-        <button type="button" className="rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-black text-white">
-          저장하기
-        </button>
-        <button type="button" className="rounded-full border border-[var(--line)] px-4 py-3 text-sm font-black text-[var(--muted)]">
-          기본값으로 되돌리기
-        </button>
-      </div>
+      <p className="mt-5 text-xs leading-5 text-[var(--muted)]">
+        변경 사항은 왼쪽 설정 영역의 저장 버튼을 누르면 반영됩니다.
+      </p>
     </Card>
   );
 }
