@@ -35,13 +35,34 @@
 ## Playwright criteria
 
 - Auth 연동에는 Playwright smoke test가 필요하다.
-- 홈, `/books`, `/books/{id}`, `/chat/{id}`처럼 화면 렌더링 경로가 바뀐 경우 desktop/mobile 시각 smoke를 수행한다.
+- 홈, `/books`, `/books/{id}`, `/chat`, `/chat/[characterId]`처럼 화면 렌더링 경로가 바뀐 경우 desktop/mobile 시각 smoke를 수행한다.
 - `/books`와 `/books/{id}`는 비로그인 공개 접근을 확인한다.
-- `/settings`, `/chat`, `/chat/{id}`는 비로그인 상태에서 `/login` redirect를 확인한다.
+- `/settings`, `/chat`, `/chat/[characterId]`는 비로그인 상태에서 `/login` redirect를 확인한다.
 - 단, Google OAuth 외부 화면 전체를 CI에서 자동화하지 않는다.
 - Google OAuth 실제 계정 로그인은 수동 확인 대상으로 둔다.
 - 자동화가 필요하면 Supabase 테스트 이메일/비밀번호 계정 또는 저장된 `storageState`를 사용한다.
 - `storageState` 파일은 민감하므로 repository에 커밋하지 않는다.
+
+## Chat session smoke
+
+- Mock Playwright checks cover `/chat?auth=member`,
+  `/chat?auth=member&session_id=mock-session-id`,
+  `/settings?auth=member` redirecting to `/login`, and
+  `/admin?auth=member` redirecting to `/admin/login`.
+- Real backend API smoke uses Newman with a temporary Postman
+  collection/environment that is not committed.
+- Before destructive chat smoke, list sessions for the selected smoke user and
+  stop if the same character already has a session.
+- Continue only when `POST /api/chat/sessions` returns HTTP 201 for a newly
+  created session. A 200 response is treated as existing-session reuse and must
+  stop the destructive path.
+- Cleanup delete is allowed only for the session created by the current smoke
+  run.
+- Smoke should confirm actual `/api/chat` round trip, transcript persistence and
+  restore, `last_message_preview` update, cleanup delete 204, and not-found
+  behavior after delete.
+- Do not record real smoke identifiers, profile values, message content, or
+  generated response text in docs, logs, PR bodies, or screenshots.
 
 ## DB/RLS checks
 

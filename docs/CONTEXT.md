@@ -2,9 +2,9 @@
 
 ## Branch context
 
-- 현재 작업 브랜치: `feature/user-session`
+- 현재 작업 브랜치: `feature/chat-experience`
 - 기준 브랜치: `develop`
-- 작업 목표: Supabase Auth 기반 사용자 로그인/회원가입, 사용자 정보 표시, 마이페이지 개별 설정 연동
+- 작업 목표: 채팅 세션 기반 대화 목록, transcript 복원, 메시지 전송, 대화방 삭제 흐름 연동
 
 ## Current implementation context
 
@@ -15,8 +15,10 @@
 - `/` 홈은 실제 `/api/books` 응답 기반으로 최대 3개 도서를 표시하며 mock fallback을 사용하지 않음.
 - 홈의 최근 대화/인기 캐릭터 mock 카드는 제거됐고, 실제 연동 전까지 빈 상태/안내 UI를 표시함.
 - `/books`와 `/books/{id}`는 비로그인 공개 경로이며 실제 `/api/books` DB 목록/검색/상세 응답을 사용함.
-- `/settings`, `/chat`, `/chat/{id}`는 로그인 보호 경로로 유지함.
-- `/chat/{id}`는 `chatApi.greeting`/`chatApi.send`로 실제 캐릭터 greeting/대화 API와 연동됨 (`feature/ish`의 `CharacterChatShell.tsx` 반영).
+- `/settings`, `/chat`, `/chat/[characterId]`는 로그인 보호 경로로 유지함.
+- `/chat`은 `chat_session` 목록과 `/chat?session_id=<session_id>` 기준 transcript 복원을 담당함.
+- `/chat/[characterId]`는 캐릭터 진입 경로이며 session 생성 후 `/chat?session_id=...`로 이동함.
+- 채팅 세션 기반 AI 에이전트 동작은 `docs/chat-agent-session-behavior.md`에 정리함.
 - `vector-search`는 request-time FlagEmbedding lazy import crash를 피하기 위해 `BGE_M3_PRELOAD` 기반 startup preload를 지원함.
 - 로컬 Windows/CPU 환경에서 `vector-search`를 검증할 때는 `BGE_M3_PRELOAD=import`, `BGE_M3_DEVICE=cpu`를 사용함.
 
