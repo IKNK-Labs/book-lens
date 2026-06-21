@@ -223,6 +223,7 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
   const [isSending, setIsSending] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [accessToken, setAccessToken] = useState<string | undefined>(undefined);
   const [lastAssistantLogId, setLastAssistantLogId] = useState("");
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackType | "">("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -234,11 +235,12 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
 
     let cancelled = false;
 
-    createClient()
-      .auth.getUser()
-      .then(({ data }) => {
+    const supabase = createClient();
+    Promise.all([supabase.auth.getUser(), supabase.auth.getSession()])
+      .then(([{ data }, { data: sessionData }]) => {
         const uid = data.user?.id;
         setUserId(uid);
+        setAccessToken(sessionData.session?.access_token);
         return chatApi.greeting(numericId, uid);
       })
       .then((info) => {
@@ -276,7 +278,7 @@ export function CharacterChatShell({ characterId }: { characterId: string }) {
     setIsSending(true);
 
     try {
-      const res = await chatApi.send(numericId, text, userId);
+      const res = await chatApi.send(numericId, text, userId, undefined, accessToken);
       const assistantMsg: ChatMessage = {
         id: `a-${Date.now()}`,
         role: "assistant",

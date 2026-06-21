@@ -25,15 +25,20 @@ export function CharacterSessionRedirector({ characterId }: { characterId: strin
       setError("");
 
       try {
-        const { data, error: authError } = await createClient().auth.getUser();
+        const supabase = createClient();
+        const [{ data, error: authError }, { data: sessionData }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
         const userId = data.user?.id;
+        const accessToken = sessionData.session?.access_token ?? "";
 
-        if (authError || !userId) {
+        if (authError || !userId || !accessToken) {
           if (!cancelled) setError("로그인한 사용자를 확인하지 못했습니다.");
           return;
         }
 
-        const session = await chatApi.createSession(numericCharacterId, userId);
+        const session = await chatApi.createSession(numericCharacterId, userId, accessToken);
         if (!cancelled) {
           const params = new URLSearchParams({ session_id: session.id });
           if (authPreview) params.set("auth", "member");

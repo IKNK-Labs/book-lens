@@ -514,17 +514,17 @@ class ChatAPITest(TestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
-    def test_missing_user_id_returns_400(self):
+    def test_missing_auth_returns_401(self):
         resp = self.client.post(
             "/api/chat/",
             {"character_id": self.character.id, "message": "안녕"},
             format="json",
         )
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 401)
 
     @patch("chat.views.run_chat")
     @patch("chat.views._get_or_create_latest_session")
-    @patch("chat.views._resolve_required_app_user_id")
+    @patch("chat.views._resolve_authenticated_app_user_id")
     def test_success_returns_response_and_category(
         self,
         mock_resolve_user,
@@ -569,26 +569,26 @@ class ChatSessionAPITest(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    def test_session_list_missing_user_id_returns_400(self):
+    def test_session_list_missing_auth_returns_401(self):
         resp = self.client.get("/api/chat/sessions")
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 401)
 
-    def test_session_create_missing_user_id_returns_400(self):
+    def test_session_create_missing_auth_returns_401(self):
         resp = self.client.post(
             "/api/chat/sessions",
             {"character_id": 1},
             format="json",
         )
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 401)
 
-    def test_session_messages_missing_user_id_returns_400(self):
+    def test_session_messages_missing_auth_returns_401(self):
         session_id = "550e8400-e29b-41d4-a716-446655440000"
         resp = self.client.get(f"/api/chat/sessions/{session_id}/messages")
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 401)
 
     @patch("chat.views.ConversationLog.objects")
     @patch("chat.views.ChatSession.objects")
-    @patch("chat.views._resolve_required_app_user_id")
+    @patch("chat.views._resolve_authenticated_app_user_id")
     def test_session_messages_filters_by_session_and_user(
         self,
         mock_resolve_user,
@@ -615,10 +615,10 @@ class ChatSessionAPITest(TestCase):
             user_id=1,
         )
 
-    def test_session_delete_missing_user_id_returns_400(self):
+    def test_session_delete_missing_auth_returns_401(self):
         session_id = "550e8400-e29b-41d4-a716-446655440000"
         resp = self.client.delete(f"/api/chat/sessions/{session_id}")
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 401)
 
 
 # ─── 6. 인사말 API 테스트 ─────────────────────────────────────────────────────

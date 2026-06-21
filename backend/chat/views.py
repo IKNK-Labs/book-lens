@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from django.db.models import F
@@ -5,6 +6,7 @@ from django.utils import timezone
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from supabase import create_client
 
 from characters.models import Character, Persona
 
@@ -37,6 +39,61 @@ def resolve_app_user_id(raw_user_id):
         return str(AppUser.objects.only("id").get(auth_user_id=auth_user_id).id)
     except AppUser.DoesNotExist:
         return ""
+
+
+def _get_bearer_token(request):
+    auth_header = request.headers.get("Authorization", "")
+    scheme, _, token = auth_header.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return ""
+    return token.strip()
+
+
+def _resolve_authenticated_app_user_id(request):
+    """Resolve app_user.id from the Supabase JWT in Authorization header."""
+
+    token = _get_bearer_token(request)
+    if not token:
+        return None, Response({"error": "authentication required"}, status=401)
+
+    supabase_url = (
+        os.environ.get("SUPABASE_URL")
+        or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+        or ""
+    ).strip()
+    supabase_key = (
+        os.environ.get("SUPABASE_PUBLISHABLE_KEY")
+        or os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+        or os.environ.get("SUPABASE_ANON_KEY")
+        or ""
+    ).strip()
+    if not supabase_url or not supabase_key:
+        return None, Response({"error": "Supabase auth is not configured"}, status=503)
+
+    try:
+        auth_user = create_client(supabase_url, supabase_key).auth.get_user(token).user
+    except Exception:
+        return None, Response({"error": "invalid authentication token"}, status=401)
+
+    auth_user_id = getattr(auth_user, "id", "")
+    app_user_id = resolve_app_user_id(auth_user_id)
+    if not app_user_id:
+        return None, Response({"error": "user not found"}, status=404)
+
+    return int(app_user_id), None
+
+
+def _reject_mismatched_user_id(request, app_user_id, source):
+    raw_user_id = source.get("user_id")
+    if raw_user_id in (None, ""):
+        return None
+
+    supplied_app_user_id = resolve_app_user_id(raw_user_id)
+    if not supplied_app_user_id:
+        return Response({"error": "user not found"}, status=404)
+    if int(supplied_app_user_id) != app_user_id:
+        return Response({"error": "user forbidden"}, status=403)
+    return None
 
 
 def _resolve_required_app_user_id(raw_user_id):
@@ -142,11 +199,12 @@ class ChatView(APIView):
         if not user_message:
             return Response({"error": "message is required"}, status=400)
 
-        # Supabase auth.users.id는 JWT에서 추출하는 것이 이상적이나,
-        # users 앱 구현 전까지는 요청 바디의 user_id를 사용한다.
-        app_user_id, error = _resolve_required_app_user_id(request.data.get("user_id"))
+        app_user_id, error = _resolve_authenticated_app_user_id(request)
         if error is not None:
             return error
+        user_error = _reject_mismatched_user_id(request, app_user_id, request.data)
+        if user_error is not None:
+            return user_error
 
         try:
             character = Character.objects.select_related("book").get(id=int(character_id))
@@ -196,11 +254,12 @@ class ChatSessionListCreateView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        app_user_id, error = _resolve_required_app_user_id(
-            request.query_params.get("user_id")
-        )
+        app_user_id, error = _resolve_authenticated_app_user_id(request)
         if error is not None:
             return error
+        user_error = _reject_mismatched_user_id(request, app_user_id, request.query_params)
+        if user_error is not None:
+            return user_error
 
         sessions = (
             ChatSession.objects.select_related("character", "book")
@@ -214,9 +273,12 @@ class ChatSessionListCreateView(APIView):
         if not character_id:
             return Response({"error": "character_id is required"}, status=400)
 
-        app_user_id, error = _resolve_required_app_user_id(request.data.get("user_id"))
+        app_user_id, error = _resolve_authenticated_app_user_id(request)
         if error is not None:
             return error
+        user_error = _reject_mismatched_user_id(request, app_user_id, request.data)
+        if user_error is not None:
+            return user_error
 
         try:
             character = Character.objects.select_related("book").get(id=int(character_id))
@@ -236,11 +298,12 @@ class ChatSessionDetailView(APIView):
     permission_classes = [AllowAny]
 
     def delete(self, request, session_id):
-        app_user_id, error = _resolve_required_app_user_id(
-            request.query_params.get("user_id")
-        )
+        app_user_id, error = _resolve_authenticated_app_user_id(request)
         if error is not None:
             return error
+        user_error = _reject_mismatched_user_id(request, app_user_id, request.query_params)
+        if user_error is not None:
+            return user_error
 
         try:
             session = ChatSession.objects.only("id", "user_id").get(id=session_id)
@@ -260,11 +323,12 @@ class ChatSessionMessagesView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, session_id):
-        app_user_id, error = _resolve_required_app_user_id(
-            request.query_params.get("user_id")
-        )
+        app_user_id, error = _resolve_authenticated_app_user_id(request)
         if error is not None:
             return error
+        user_error = _reject_mismatched_user_id(request, app_user_id, request.query_params)
+        if user_error is not None:
+            return user_error
 
         try:
             session = ChatSession.objects.only("id", "user_id").get(id=session_id)

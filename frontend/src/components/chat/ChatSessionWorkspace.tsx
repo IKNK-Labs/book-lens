@@ -203,6 +203,7 @@ export function ChatSessionWorkspace() {
   const selectedSessionIdRef = useRef(selectedSessionId);
 
   const [userId, setUserId] = useState("");
+  const [accessToken, setAccessToken] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [messages, setMessages] = useState<UiChatMessage[]>([]);
   const [feedbackByLogId, setFeedbackByLogId] = useState<Record<string, FeedbackType>>({});
@@ -237,21 +238,28 @@ export function ChatSessionWorkspace() {
       setListError("");
 
       try {
-        const { data, error } = await createClient().auth.getUser();
+        const supabase = createClient();
+        const [{ data, error }, { data: sessionData }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
         const authUserId = data.user?.id;
+        const token = sessionData.session?.access_token ?? "";
 
-        if (error || !authUserId) {
+        if (error || !authUserId || !token) {
           if (!cancelled) {
             setUserId("");
+            setAccessToken("");
             setSessions([]);
             setListStatus("missing-user");
           }
           return;
         }
 
-        const items = await chatApi.sessions(authUserId);
+        const items = await chatApi.sessions(authUserId, token);
         if (!cancelled) {
           setUserId(authUserId);
+          setAccessToken(token);
           setSessions(items);
           setListStatus("ready");
         }
@@ -271,7 +279,7 @@ export function ChatSessionWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (listStatus !== "ready" || !userId) return;
+    if (listStatus !== "ready" || !userId || !accessToken) return;
 
     if (!selectedSessionId) {
       setMessages([]);
@@ -297,7 +305,7 @@ export function ChatSessionWorkspace() {
       setSendError("");
 
       try {
-        const transcript = await chatApi.messages(session.id, userId);
+        const transcript = await chatApi.messages(session.id, userId, undefined, accessToken);
         if (cancelled) return;
 
         if (transcript.length > 0) {
@@ -333,7 +341,7 @@ export function ChatSessionWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [listStatus, selectedSession, selectedSessionId, userId]);
+  }, [accessToken, listStatus, selectedSession, selectedSessionId, userId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -344,9 +352,9 @@ export function ChatSessionWorkspace() {
   }, [selectedSessionId]);
 
   async function refreshSessions() {
-    if (!userId) return;
+    if (!userId || !accessToken) return;
     try {
-      const items = await chatApi.sessions(userId);
+      const items = await chatApi.sessions(userId, accessToken);
       setSessions(items);
     } catch {
       setListError("대화방 목록을 새로고침하지 못했습니다.");
@@ -379,6 +387,7 @@ export function ChatSessionWorkspace() {
         text,
         userId,
         sendingSessionId,
+        accessToken,
       );
 
       if (selectedSessionIdRef.current === sendingSessionId) {
@@ -408,7 +417,7 @@ export function ChatSessionWorkspace() {
 
   async function handleDeleteSession(session: ChatSession, event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
-    if (!userId || deletingSessionId) return;
+    if (!userId || !accessToken || deletingSessionId) return;
 
     const confirmed = window.confirm("이 대화방을 삭제할까요?");
     if (!confirmed) return;
@@ -417,7 +426,7 @@ export function ChatSessionWorkspace() {
     setDeleteError("");
 
     try {
-      await chatApi.deleteSession(session.id, userId);
+      await chatApi.deleteSession(session.id, userId, accessToken);
       setSessions((current) => current.filter((item) => item.id !== session.id));
       if (selectedSessionId === session.id) {
         setMessages([]);
