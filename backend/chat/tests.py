@@ -35,6 +35,7 @@ from .pipeline import (
 def _make_base_state(character_id: int, message: str = "안녕") -> dict:
     return {
         "user_id": "",
+        "session_id": "",
         "character_id": character_id,
         "user_message": message,
         "persona": {
@@ -64,8 +65,18 @@ def _make_base_state(character_id: int, message: str = "안녕") -> dict:
 
 def _setup_log_mock(mock_log_objects) -> None:
     """ConversationLog.objects mock에 load_history_node 체인을 빈 리스트로 설정."""
-    mock_log_objects.filter.return_value.filter.return_value.order_by.return_value.__getitem__ = MagicMock(return_value=[])
     mock_log_objects.filter.return_value.order_by.return_value.__getitem__ = MagicMock(return_value=[])
+    mock_log_objects.filter.return_value.aggregate.return_value = {"max_turn_index": 0}
+
+
+def _setup_session_save_mock(mock_session_objects, mock_log_objects) -> str:
+    """Session row lock/save path를 managed=False DB 없이 검증하기 위한 mock."""
+    session_id = "550e8400-e29b-41d4-a716-446655440000"
+    mock_session = MagicMock()
+    mock_session.id = session_id
+    mock_session_objects.select_for_update.return_value.get.return_value = mock_session
+    mock_log_objects.filter.return_value.aggregate.return_value = {"max_turn_index": 0}
+    return session_id
 
 
 def _forbidden_rule(pattern: str, rule_type: str, target: str = "both") -> dict:
@@ -219,12 +230,18 @@ class PipelineIntegrationTest(TestCase):
             Exception.__new__(type("DoesNotExist", (Exception,), {}))
         )
 
+    @patch("chat.pipeline.ChatSession.objects")
     @patch("chat.pipeline.ConversationLog.objects")
     @patch("chat.pipeline.Persona.objects")
     @patch("chat.pipeline.ForbiddenRule.objects")
     @patch("chat.pipeline._gemini_client")
     def test_counseling_path_saves_logs(
-        self, mock_client, mock_forbidden_objects, mock_persona_objects, mock_log_objects
+        self,
+        mock_client,
+        mock_forbidden_objects,
+        mock_persona_objects,
+        mock_log_objects,
+        mock_session_objects,
     ):
         from characters.models import Persona as _Persona
 
@@ -233,6 +250,7 @@ class PipelineIntegrationTest(TestCase):
         )
         mock_forbidden_objects.filter.return_value = []
         _setup_log_mock(mock_log_objects)
+        session_id = _setup_session_save_mock(mock_session_objects, mock_log_objects)
 
         gemini = mock_client.return_value
         gemini.models.generate_content.side_effect = [
@@ -241,9 +259,10 @@ class PipelineIntegrationTest(TestCase):
         ]
 
         result = run_chat(
-            user_id="",
+            user_id="1",
             character_id=self.character.id,
             user_message="안녕",
+            session_id=session_id,
         )
 
         self.assertEqual(result["category"], "counseling")
@@ -257,6 +276,11 @@ class PipelineIntegrationTest(TestCase):
         ]
         self.assertIn("user", roles)
         self.assertIn("assistant", roles)
+        turn_indexes = [
+            call.kwargs["turn_index"]
+            for call in mock_log_objects.create.call_args_list
+        ]
+        self.assertEqual(turn_indexes, [1, 2])
 
     @patch("chat.pipeline.ConversationLog.objects")
     @patch("chat.pipeline.get_embedding")
@@ -304,12 +328,18 @@ class PipelineIntegrationTest(TestCase):
         self.assertEqual(result["category"], "story")
         mock_embedding.assert_called_once()
 
+    @patch("chat.pipeline.ChatSession.objects")
     @patch("chat.pipeline.ConversationLog.objects")
     @patch("chat.pipeline.Persona.objects")
     @patch("chat.pipeline.ForbiddenRule.objects")
     @patch("chat.pipeline._gemini_client")
     def test_forbidden_path_no_second_llm_call(
-        self, mock_client, mock_forbidden_objects, mock_persona_objects, mock_log_objects
+        self,
+        mock_client,
+        mock_forbidden_objects,
+        mock_persona_objects,
+        mock_log_objects,
+        mock_session_objects,
     ):
         from characters.models import Persona as _Persona
 
@@ -318,6 +348,7 @@ class PipelineIntegrationTest(TestCase):
         )
         mock_forbidden_objects.filter.return_value = []
         _setup_log_mock(mock_log_objects)
+        session_id = _setup_session_save_mock(mock_session_objects, mock_log_objects)
 
         gemini = mock_client.return_value
         gemini.models.generate_content.side_effect = [
@@ -325,9 +356,10 @@ class PipelineIntegrationTest(TestCase):
         ]
 
         result = run_chat(
-            user_id="",
+            user_id="1",
             character_id=self.character.id,
             user_message="폭력적인 내용 알려줘",
+            session_id=session_id,
         )
 
         self.assertEqual(result["category"], "forbidden")
@@ -342,12 +374,18 @@ class PipelineIntegrationTest(TestCase):
         )
         self.assertTrue(assistant_call.kwargs["is_flagged"])
 
+    @patch("chat.pipeline.ChatSession.objects")
     @patch("chat.pipeline.ConversationLog.objects")
     @patch("chat.pipeline.Persona.objects")
     @patch("chat.pipeline.ForbiddenRule.objects")
     @patch("chat.pipeline._gemini_client")
     def test_output_filter_replaces_flagged_response(
-        self, mock_client, mock_forbidden_objects, mock_persona_objects, mock_log_objects
+        self,
+        mock_client,
+        mock_forbidden_objects,
+        mock_persona_objects,
+        mock_log_objects,
+        mock_session_objects,
     ):
         from characters.models import Persona as _Persona
 
@@ -355,6 +393,7 @@ class PipelineIntegrationTest(TestCase):
             _Persona.DoesNotExist
         )
         _setup_log_mock(mock_log_objects)
+        session_id = _setup_session_save_mock(mock_session_objects, mock_log_objects)
         mock_rule = MagicMock()
         mock_rule.pattern = "나쁜말"
         mock_rule.rule_type = ForbiddenRule.RULE_TYPE_WORD
@@ -369,9 +408,10 @@ class PipelineIntegrationTest(TestCase):
         ]
 
         result = run_chat(
-            user_id="",
+            user_id="1",
             character_id=self.character.id,
             user_message="뭔가 말해줘",
+            session_id=session_id,
         )
 
         self.assertEqual(result["response"], _DEFAULT_FALLBACK)
@@ -381,12 +421,18 @@ class PipelineIntegrationTest(TestCase):
         )
         self.assertTrue(assistant_call.kwargs["is_flagged"])
 
+    @patch("chat.pipeline.ChatSession.objects")
     @patch("chat.pipeline.ConversationLog.objects")
     @patch("chat.pipeline.Persona.objects")
     @patch("chat.pipeline.ForbiddenRule.objects")
     @patch("chat.pipeline._gemini_client")
     def test_history_passed_to_llm(
-        self, mock_client, mock_forbidden_objects, mock_persona_objects, mock_log_objects
+        self,
+        mock_client,
+        mock_forbidden_objects,
+        mock_persona_objects,
+        mock_log_objects,
+        mock_session_objects,
     ):
         """ConversationLog 히스토리 2개 → generate_content에 Content 3개 전달."""
         from characters.models import Persona as _Persona
@@ -406,9 +452,8 @@ class PipelineIntegrationTest(TestCase):
         mock_log_objects.filter.return_value.order_by.return_value.__getitem__ = MagicMock(
             return_value=[prev_asst, prev_user]  # DESC 정렬 상태 (reversed 처리됨)
         )
-        mock_log_objects.filter.return_value.filter.return_value.order_by.return_value.__getitem__ = MagicMock(
-            return_value=[]
-        )
+        mock_log_objects.filter.return_value.aggregate.return_value = {"max_turn_index": 2}
+        session_id = _setup_session_save_mock(mock_session_objects, mock_log_objects)
 
         gemini = mock_client.return_value
         gemini.models.generate_content.side_effect = [
@@ -417,9 +462,10 @@ class PipelineIntegrationTest(TestCase):
         ]
 
         run_chat(
-            user_id="",
+            user_id="1",
             character_id=self.character.id,
             user_message="자기소개 다시 해줘",
+            session_id=session_id,
         )
 
         # generate_response_node의 generate_content 호출 (2번째 호출)
@@ -452,38 +498,82 @@ class ChatAPITest(TestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
-    @patch("chat.pipeline.ConversationLog.objects")
-    @patch("chat.pipeline.Persona.objects")
-    @patch("chat.pipeline.ForbiddenRule.objects")
-    @patch("chat.pipeline._gemini_client")
-    def test_success_returns_response_and_category(
-        self, mock_client, mock_forbidden_objects, mock_persona_objects, mock_log_objects
-    ):
-        from characters.models import Persona as _Persona
-
-        mock_persona_objects.select_related.return_value.get.side_effect = (
-            _Persona.DoesNotExist
-        )
-        mock_forbidden_objects.filter.return_value = []
-        _setup_log_mock(mock_log_objects)
-
-        gemini = mock_client.return_value
-        gemini.models.generate_content.side_effect = [
-            MagicMock(text='{"category": "counseling"}'),
-            MagicMock(text="반갑습니다!"),
-        ]
-
+    def test_missing_user_id_returns_400(self):
         resp = self.client.post(
             "/api/chat/",
             {"character_id": self.character.id, "message": "안녕"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch("chat.views.run_chat")
+    @patch("chat.views._get_or_create_latest_session")
+    @patch("chat.views._resolve_required_app_user_id")
+    def test_success_returns_response_and_category(
+        self,
+        mock_resolve_user,
+        mock_get_or_create_session,
+        mock_run_chat,
+    ):
+        session_id = "550e8400-e29b-41d4-a716-446655440000"
+        mock_session = MagicMock()
+        mock_session.id = session_id
+        mock_session.user_id = 1
+        mock_session.character_id = self.character.id
+        mock_resolve_user.return_value = (1, None)
+        mock_get_or_create_session.return_value = (mock_session, False)
+        mock_run_chat.return_value = {
+            "session_id": session_id,
+            "response": "반갑습니다!",
+            "category": "counseling",
+            "is_flagged": False,
+            "assistant_log_id": "10",
+        }
+
+        resp = self.client.post(
+            "/api/chat/",
+            {
+                "character_id": self.character.id,
+                "message": "안녕",
+                "user_id": "1",
+            },
             format="json",
         )
 
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertIn("response", data)
+        self.assertEqual(data["session_id"], session_id)
         self.assertIn("category", data)
         self.assertEqual(data["category"], "counseling")
+
+
+class ChatSessionAPITest(TestCase):
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_session_list_missing_user_id_returns_400(self):
+        resp = self.client.get("/api/chat/sessions")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_session_create_missing_user_id_returns_400(self):
+        resp = self.client.post(
+            "/api/chat/sessions",
+            {"character_id": 1},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_session_messages_missing_user_id_returns_400(self):
+        session_id = "550e8400-e29b-41d4-a716-446655440000"
+        resp = self.client.get(f"/api/chat/sessions/{session_id}/messages")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_session_delete_missing_user_id_returns_400(self):
+        session_id = "550e8400-e29b-41d4-a716-446655440000"
+        resp = self.client.delete(f"/api/chat/sessions/{session_id}")
+        self.assertEqual(resp.status_code, 400)
 
 
 # ─── 6. 인사말 API 테스트 ─────────────────────────────────────────────────────
@@ -532,9 +622,13 @@ class GreetingAPITest(TestCase):
         resp = self.client.get(f"/api/chat/greeting/?character_id={self.character.id}")
         self.assertFalse(resp.json()["has_history"])
 
+    @patch("chat.views.resolve_app_user_id")
     @patch("chat.views.ConversationLog.objects")
-    def test_has_history_true_when_logs_exist(self, mock_log_objects):
-        """해당 character + user_id의 로그가 있으면 has_history=True."""
+    def test_has_history_true_when_logs_exist(
+        self, mock_log_objects, mock_resolve_user
+    ):
+        """해당 character + user_id의 log가 있으면 has_history=True."""
+        mock_resolve_user.return_value = "1"
         mock_log_objects.filter.return_value.exists.return_value = True
 
         user_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -543,10 +637,18 @@ class GreetingAPITest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["has_history"])
+        self.assertEqual(resp.json()["assistant_log_id"], "")
+        mock_log_objects.create.assert_not_called()
 
+    @patch("chat.views.resolve_app_user_id")
     @patch("chat.views.ConversationLog.objects")
-    def test_has_history_false_when_no_logs(self, mock_log_objects):
-        """로그가 없으면 has_history=False."""
+    @patch("chat.views.ChatSession.objects")
+    def test_has_history_false_when_session_exists_but_no_logs(
+        self, mock_session_objects, mock_log_objects, mock_resolve_user
+    ):
+        """session만 있고 log가 없으면 has_history=False."""
+        mock_resolve_user.return_value = "1"
+        mock_session_objects.filter.return_value.exists.return_value = True
         mock_log_objects.filter.return_value.exists.return_value = False
 
         user_uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -554,3 +656,6 @@ class GreetingAPITest(TestCase):
             f"/api/chat/greeting/?character_id={self.character.id}&user_id={user_uuid}"
         )
         self.assertFalse(resp.json()["has_history"])
+        self.assertEqual(resp.json()["assistant_log_id"], "")
+        mock_session_objects.filter.assert_not_called()
+        mock_log_objects.create.assert_not_called()
