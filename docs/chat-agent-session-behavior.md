@@ -61,6 +61,11 @@ or screenshots.
 
 ## Current Exclusions
 
+The exclusions below apply to conversation history and long-term memory. Existing
+RAG-style retrieval used for book content or story context is a separate flow.
+This session MVP means conversation logs were not expanded into embedding,
+vector search, or RAG-backed long-term memory.
+
 The session MVP does not add:
 
 - conversation embeddings
