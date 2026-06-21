@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "../../../components/layout/AppShell";
-import { CharacterChatShell } from "../../../components/chat/CharacterChatShell";
+import { CharacterSessionRedirector } from "../../../components/chat/CharacterSessionRedirector";
 import { getLoginRedirect } from "../../../lib/authNext";
 import { getViewer } from "../../../lib/mockAuth";
 
@@ -19,7 +19,7 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
 
   return (
     <AppShell viewer={viewer}>
-      <CharacterChatShell characterId={characterId} />
+      <CharacterSessionRedirector characterId={characterId} />
     </AppShell>
   );
 }
