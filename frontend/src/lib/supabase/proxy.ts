@@ -31,6 +31,19 @@ function isUserProtectedRoute(pathname: string) {
   );
 }
 
+function isChatRoute(pathname: string) {
+  return pathname === "/chat" || pathname.startsWith("/chat/");
+}
+
+function isMockChatPreview(request: NextRequest, pathname: string) {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_MOCK_AUTH_PREVIEW === "true" &&
+    isChatRoute(pathname) &&
+    request.nextUrl.searchParams.get("auth") === "member"
+  );
+}
+
 function redirectWithCookies(response: NextResponse, destination: URL) {
   const redirectResponse = NextResponse.redirect(destination);
 
@@ -65,15 +78,12 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const supabaseConfig = getSupabaseConfig();
 
-  if (!supabaseConfig) {
-    if (
-      process.env.NODE_ENV !== "production" &&
-      isUserProtectedRoute(pathname) &&
-      request.nextUrl.searchParams.get("auth") === "member"
-    ) {
-      return supabaseResponse;
-    }
+  // Dev-only preview bypass for Playwright/mock chat UI checks.
+  if (isMockChatPreview(request, pathname)) {
+    return supabaseResponse;
+  }
 
+  if (!supabaseConfig) {
     if (
       isUserProtectedRoute(pathname) ||
       (isAdminRoute(pathname) && pathname !== ADMIN_LOGIN_PATH)

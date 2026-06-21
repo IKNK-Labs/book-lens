@@ -1,6 +1,9 @@
-import type { ChatMessage } from "../../data/mock";
+type ChatBubbleMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
 
-export function ChatBubble({ message }: { message: ChatMessage }) {
+export function ChatBubble({ message }: { message: ChatBubbleMessage }) {
   const isUser = message.role === "user";
 
   return (
