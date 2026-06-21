@@ -498,6 +498,22 @@ class ChatAPITest(TestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
+    def test_null_message_returns_400(self):
+        resp = self.client.post(
+            "/api/chat/",
+            {"character_id": self.character.id, "message": None},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_non_string_message_returns_400(self):
+        resp = self.client.post(
+            "/api/chat/",
+            {"character_id": self.character.id, "message": 123},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
     def test_missing_user_id_returns_400(self):
         resp = self.client.post(
             "/api/chat/",
@@ -569,6 +585,35 @@ class ChatSessionAPITest(TestCase):
         session_id = "550e8400-e29b-41d4-a716-446655440000"
         resp = self.client.get(f"/api/chat/sessions/{session_id}/messages")
         self.assertEqual(resp.status_code, 400)
+
+    @patch("chat.views.ConversationLog.objects")
+    @patch("chat.views.ChatSession.objects")
+    @patch("chat.views._resolve_required_app_user_id")
+    def test_session_messages_filters_by_session_and_user(
+        self,
+        mock_resolve_user,
+        mock_session_objects,
+        mock_log_objects,
+    ):
+        session_id = "550e8400-e29b-41d4-a716-446655440000"
+        mock_resolve_user.return_value = (1, None)
+        mock_session = MagicMock()
+        mock_session.id = session_id
+        mock_session.user_id = 1
+        mock_session_objects.only.return_value.get.return_value = mock_session
+        mock_ordered_logs = MagicMock()
+        mock_ordered_logs.__getitem__.return_value = []
+        mock_log_objects.filter.return_value.order_by.return_value = mock_ordered_logs
+
+        resp = self.client.get(
+            f"/api/chat/sessions/{session_id}/messages?user_id=1"
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        mock_log_objects.filter.assert_called_once_with(
+            session_id=session_id,
+            user_id=1,
+        )
 
     def test_session_delete_missing_user_id_returns_400(self):
         session_id = "550e8400-e29b-41d4-a716-446655440000"

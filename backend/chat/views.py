@@ -132,10 +132,13 @@ class ChatView(APIView):
 
     def post(self, request):
         character_id = request.data.get("character_id")
-        user_message = str(request.data.get("message", "")).strip()
+        raw_user_message = request.data.get("message", "")
 
         if not character_id:
             return Response({"error": "character_id is required"}, status=400)
+        if not isinstance(raw_user_message, str):
+            return Response({"error": "message is required"}, status=400)
+        user_message = raw_user_message.strip()
         if not user_message:
             return Response({"error": "message is required"}, status=400)
 
@@ -273,7 +276,7 @@ class ChatSessionMessagesView(APIView):
 
         limit = _parse_message_limit(request.query_params.get("limit"))
         logs = (
-            ConversationLog.objects.filter(session_id=session.id)
+            ConversationLog.objects.filter(session_id=session.id, user_id=app_user_id)
             .order_by(F("turn_index").asc(nulls_last=True), "created_at", "id")[:limit]
         )
         return Response([_serialize_conversation_log(log) for log in logs])
