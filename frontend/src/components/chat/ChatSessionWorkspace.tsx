@@ -200,6 +200,7 @@ export function ChatSessionWorkspace() {
   const selectedSessionId = searchParams.get("session_id") ?? "";
   const authPreview = searchParams.get("auth") === "member";
   const bottomRef = useRef<HTMLDivElement>(null);
+  const selectedSessionIdRef = useRef(selectedSessionId);
 
   const [userId, setUserId] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -338,6 +339,10 @@ export function ChatSessionWorkspace() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
 
+  useEffect(() => {
+    selectedSessionIdRef.current = selectedSessionId;
+  }, [selectedSessionId]);
+
   async function refreshSessions() {
     if (!userId) return;
     try {
@@ -352,6 +357,7 @@ export function ChatSessionWorkspace() {
     const text = input.trim();
     if (!text || !selectedSession || !userId || isSending) return;
 
+    const sendingSessionId = selectedSession.id;
     const previousMessages = messages;
     const pendingMessage: UiChatMessage = {
       id: `pending-${Date.now()}`,
@@ -372,24 +378,29 @@ export function ChatSessionWorkspace() {
         selectedSession.character_id,
         text,
         userId,
-        selectedSession.id,
+        sendingSessionId,
       );
-      const assistantMessage: UiChatMessage = {
-        id: result.assistant_log_id || `assistant-${Date.now()}`,
-        role: "assistant",
-        content: result.response,
-        conversationLogId: result.assistant_log_id || undefined,
-        isFlagged: result.is_flagged,
-      };
 
-      setMessages((current) => [...current, assistantMessage]);
-      if (result.session_id && result.session_id !== selectedSession.id) {
-        router.replace(chatPath(result.session_id));
+      if (selectedSessionIdRef.current === sendingSessionId) {
+        const assistantMessage: UiChatMessage = {
+          id: result.assistant_log_id || `assistant-${Date.now()}`,
+          role: "assistant",
+          content: result.response,
+          conversationLogId: result.assistant_log_id || undefined,
+          isFlagged: result.is_flagged,
+        };
+
+        setMessages((current) => [...current, assistantMessage]);
+        if (result.session_id && result.session_id !== sendingSessionId) {
+          router.replace(chatPath(result.session_id));
+        }
       }
       refreshSessions();
     } catch {
-      setMessages(previousMessages);
-      setSendError("메시지를 보내지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      if (selectedSessionIdRef.current === sendingSessionId) {
+        setMessages(previousMessages);
+        setSendError("메시지를 보내지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      }
     } finally {
       setIsSending(false);
     }
