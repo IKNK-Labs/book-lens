@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 from books.models import Book
@@ -41,6 +43,43 @@ class UserPreference(models.Model):
         return f"UserPreference(user_id={self.user_id})"
 
 
+class ChatSession(models.Model):
+    """User-owned character conversation thread."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        AppUser,
+        on_delete=models.CASCADE,
+        related_name="chat_sessions",
+        db_column="user_id",
+    )
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="chat_sessions",
+        db_column="character_id",
+    )
+    book = models.ForeignKey(
+        Book,
+        on_delete=models.CASCADE,
+        related_name="chat_sessions",
+        db_column="book_id",
+    )
+    title = models.CharField(max_length=120, blank=True, null=True)
+    last_message_preview = models.TextField(blank=True, null=True)
+    last_active_at = models.DateTimeField()
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "chat_session"
+        managed = False
+        ordering = ["-last_active_at", "-created_at"]
+
+    def __str__(self):
+        return self.title or f"ChatSession({self.id})"
+
+
 class ConversationLog(models.Model):
     """캐릭터 대화 기록."""
 
@@ -63,9 +102,18 @@ class ConversationLog(models.Model):
         related_name="conversation_logs",
         db_column="character_id",
     )
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name="conversation_logs",
+        db_column="session_id",
+        blank=True,
+        null=True,
+    )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     message = models.TextField()
     is_flagged = models.BooleanField(default=False)
+    turn_index = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
