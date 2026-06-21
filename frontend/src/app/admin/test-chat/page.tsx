@@ -11,6 +11,7 @@ import {
   type CharacterResponse,
   type PersonaResponse,
 } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
 
 type ChatMessage = {
   id: string;
@@ -81,8 +82,11 @@ export default function Page() {
   const [isLoadingBooks, setIsLoadingBooks] = useState(true);
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
   const [isLoadingGreeting, setIsLoadingGreeting] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [accessToken, setAccessToken] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedBook = books.find((book) => book.id === selectedBookId) ?? null;
@@ -91,13 +95,48 @@ export default function Page() {
   const selectedPersona =
     selectedCharacterId == null ? null : personasByCharacterId[selectedCharacterId] ?? null;
 
-  const chatDisabled = !selectedCharacter || isSending || isLoadingGreeting;
+  const chatDisabled =
+    !selectedCharacter || !userId || !accessToken || isSending || isLoadingGreeting;
   const statusText = useMemo(() => {
+    if (isLoadingAuth) return "관리자 로그인 세션을 확인하는 중입니다.";
+    if (!userId || !accessToken) return "관리자 로그인 세션을 확인하지 못했습니다.";
     if (isLoadingGreeting) return "첫 인사말을 불러오는 중입니다.";
     if (isSending) return "챗봇 API 응답을 기다리는 중입니다.";
     if (!selectedCharacter) return "동화책과 캐릭터를 선택하면 테스트를 시작할 수 있습니다.";
     return "금지어는 챗봇 API의 분류와 출력 필터를 통과하며, 캐릭터 선택 시 첫 인사말은 persona의 시작 인사말을 사용합니다.";
-  }, [isLoadingGreeting, isSending, selectedCharacter]);
+  }, [accessToken, isLoadingAuth, isLoadingGreeting, isSending, selectedCharacter, userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAuth() {
+      setIsLoadingAuth(true);
+      try {
+        const supabase = createClient();
+        const [{ data, error }, { data: sessionData }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
+        if (cancelled) return;
+
+        setUserId(error ? undefined : data.user?.id);
+        setAccessToken(sessionData.session?.access_token);
+      } catch {
+        if (!cancelled) {
+          setUserId(undefined);
+          setAccessToken(undefined);
+        }
+      } finally {
+        if (!cancelled) setIsLoadingAuth(false);
+      }
+    }
+
+    loadAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setIsLoadingBooks(true);
@@ -197,7 +236,7 @@ export default function Page() {
 
   const handleSend = async () => {
     const text = inputValue.trim();
-    if (!text || !selectedCharacter || chatDisabled) return;
+    if (!text || !selectedCharacter || chatDisabled || !userId || !accessToken) return;
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -211,7 +250,13 @@ export default function Page() {
     setErrorMessage("");
 
     try {
-      const result = await chatApi.send(selectedCharacter.id, text);
+      const result = await chatApi.send(
+        selectedCharacter.id,
+        text,
+        userId,
+        undefined,
+        accessToken,
+      );
       setMessages((prev) => [
         ...prev,
         {

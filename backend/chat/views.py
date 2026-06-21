@@ -339,10 +339,11 @@ class ChatSessionMessagesView(APIView):
             return Response({"error": "session forbidden"}, status=403)
 
         limit = _parse_message_limit(request.query_params.get("limit"))
-        logs = (
+        latest_logs = (
             ConversationLog.objects.filter(session_id=session.id, user_id=app_user_id)
-            .order_by(F("turn_index").asc(nulls_last=True), "created_at", "id")[:limit]
+            .order_by(F("turn_index").desc(nulls_last=True), "-created_at", "-id")[:limit]
         )
+        logs = reversed(list(latest_logs))
         return Response([_serialize_conversation_log(log) for log in logs])
 
 

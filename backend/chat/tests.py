@@ -615,6 +615,66 @@ class ChatSessionAPITest(TestCase):
             user_id=1,
         )
 
+    @patch("chat.views.ConversationLog.objects")
+    @patch("chat.views.ChatSession.objects")
+    @patch("chat.views._resolve_authenticated_app_user_id")
+    def test_session_messages_returns_recent_window_in_display_order(
+        self,
+        mock_resolve_user,
+        mock_session_objects,
+        mock_log_objects,
+    ):
+        session_id = "550e8400-e29b-41d4-a716-446655440000"
+        mock_resolve_user.return_value = (1, None)
+        mock_session = MagicMock()
+        mock_session.id = session_id
+        mock_session.user_id = 1
+        mock_session_objects.only.return_value.get.return_value = mock_session
+
+        older_log = MagicMock()
+        older_log.id = 101
+        older_log.role = "user"
+        older_log.message = "older"
+        older_log.is_flagged = False
+        older_log.turn_index = 51
+        older_log.created_at = None
+
+        newest_log = MagicMock()
+        newest_log.id = 102
+        newest_log.role = "assistant"
+        newest_log.message = "newest"
+        newest_log.is_flagged = False
+        newest_log.turn_index = 52
+        newest_log.created_at = None
+
+        mock_ordered_logs = MagicMock()
+        mock_ordered_logs.__getitem__.return_value = [newest_log, older_log]
+        mock_log_objects.filter.return_value.order_by.return_value = mock_ordered_logs
+
+        resp = self.client.get(
+            f"/api/chat/sessions/{session_id}/messages?user_id=1&limit=2"
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            [row["turn_index"] for row in resp.json()],
+            [51, 52],
+        )
+
+    @patch("chat.views.resolve_app_user_id")
+    @patch("chat.views._resolve_authenticated_app_user_id")
+    def test_session_list_rejects_mismatched_user_id(
+        self,
+        mock_resolve_user,
+        mock_resolve_supplied_user,
+    ):
+        mock_resolve_user.return_value = (1, None)
+        mock_resolve_supplied_user.return_value = "2"
+
+        resp = self.client.get("/api/chat/sessions?user_id=2")
+
+        self.assertEqual(resp.status_code, 403)
+
     def test_session_delete_missing_auth_returns_401(self):
         session_id = "550e8400-e29b-41d4-a716-446655440000"
         resp = self.client.delete(f"/api/chat/sessions/{session_id}")

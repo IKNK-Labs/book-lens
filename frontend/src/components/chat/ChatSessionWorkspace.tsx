@@ -25,6 +25,26 @@ type UiChatMessage = {
 type ListStatus = "loading" | "ready" | "missing-user" | "error";
 type MessageStatus = "idle" | "loading" | "ready" | "not-found" | "error";
 
+const MOCK_CHAT_PREVIEW_USER_ID = "mock-preview-user";
+const MOCK_CHAT_PREVIEW_ACCESS = "mock-preview-access";
+const MOCK_CHAT_PREVIEW_SESSION_ID = "mock-session-id";
+
+const MOCK_CHAT_PREVIEW_SESSIONS: ChatSession[] = [
+  {
+    id: MOCK_CHAT_PREVIEW_SESSION_ID,
+    character_id: 1,
+    character_name: "미리보기 캐릭터",
+    character_role: "대화 미리보기",
+    character_emoji: "📖",
+    character_profile_image_url: null,
+    book_id: 1,
+    book_title: "미리보기 책",
+    title: "미리보기 대화",
+    last_message_preview: null,
+    last_active_at: null,
+  },
+];
+
 function formatDate(value: string | null) {
   if (!value) return "활동 기록 없음";
   const date = new Date(value);
@@ -238,6 +258,16 @@ export function ChatSessionWorkspace() {
       setListError("");
 
       try {
+        if (authPreview) {
+          if (!cancelled) {
+            setUserId(MOCK_CHAT_PREVIEW_USER_ID);
+            setAccessToken(MOCK_CHAT_PREVIEW_ACCESS);
+            setSessions(MOCK_CHAT_PREVIEW_SESSIONS);
+            setListStatus("ready");
+          }
+          return;
+        }
+
         const supabase = createClient();
         const [{ data, error }, { data: sessionData }] = await Promise.all([
           supabase.auth.getUser(),
@@ -276,7 +306,7 @@ export function ChatSessionWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authPreview]);
 
   useEffect(() => {
     if (listStatus !== "ready" || !userId || !accessToken) return;
@@ -305,6 +335,20 @@ export function ChatSessionWorkspace() {
       setSendError("");
 
       try {
+        if (authPreview) {
+          setMessages([
+            {
+              id: `greeting-${session.id}`,
+              role: "assistant",
+              content: "안녕! 채팅 세션 미리보기 화면이야.",
+              conversationLogId: "",
+              isGreeting: true,
+            },
+          ]);
+          setMessageStatus("ready");
+          return;
+        }
+
         const transcript = await chatApi.messages(session.id, userId, undefined, accessToken);
         if (cancelled) return;
 
@@ -341,7 +385,7 @@ export function ChatSessionWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, listStatus, selectedSession, selectedSessionId, userId]);
+  }, [accessToken, authPreview, listStatus, selectedSession, selectedSessionId, userId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -353,6 +397,7 @@ export function ChatSessionWorkspace() {
 
   async function refreshSessions() {
     if (!userId || !accessToken) return;
+    if (authPreview) return;
     try {
       const items = await chatApi.sessions(userId, accessToken);
       setSessions(items);
@@ -380,6 +425,29 @@ export function ChatSessionWorkspace() {
     setInput("");
     setSendError("");
     setIsSending(true);
+
+    if (authPreview) {
+      const assistantMessage: UiChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: "미리보기 응답입니다. 실제 API 호출 없이 화면 흐름만 확인합니다.",
+      };
+
+      setMessages((current) => [...current, assistantMessage]);
+      setSessions((current) =>
+        current.map((session) =>
+          session.id === sendingSessionId
+            ? {
+                ...session,
+                last_message_preview: assistantMessage.content,
+                last_active_at: new Date().toISOString(),
+              }
+            : session,
+        ),
+      );
+      setIsSending(false);
+      return;
+    }
 
     try {
       const result = await chatApi.send(
@@ -426,6 +494,16 @@ export function ChatSessionWorkspace() {
     setDeleteError("");
 
     try {
+      if (authPreview) {
+        setSessions((current) => current.filter((item) => item.id !== session.id));
+        if (selectedSessionId === session.id) {
+          setMessages([]);
+          setMessageStatus("idle");
+          router.push(chatPath());
+        }
+        return;
+      }
+
       await chatApi.deleteSession(session.id, userId, accessToken);
       setSessions((current) => current.filter((item) => item.id !== session.id));
       if (selectedSessionId === session.id) {
@@ -444,6 +522,11 @@ export function ChatSessionWorkspace() {
     if (!userId) return;
 
     try {
+      if (authPreview) {
+        setFeedbackByLogId((current) => ({ ...current, [logId]: feedbackType }));
+        return;
+      }
+
       await chatApi.feedback({
         conversation_log_id: logId,
         feedback_type: feedbackType,
