@@ -12,6 +12,8 @@ const DEFAULT_SESSION_ERROR_MESSAGE =
 function getSessionErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) return DEFAULT_SESSION_ERROR_MESSAGE;
 
+  const errorKey = typeof error.data.error === "string" ? error.data.error : "";
+
   switch (error.status) {
     case 400:
       return "대화방 요청 정보가 올바르지 않습니다.";
@@ -20,6 +22,9 @@ function getSessionErrorMessage(error: unknown) {
     case 403:
       return "로그인 사용자와 요청 사용자가 일치하지 않습니다.";
     case 404:
+      if (errorKey === "user not found") {
+        return "로그인 사용자 정보를 찾지 못했습니다.";
+      }
       return "캐릭터 정보를 찾지 못했습니다.";
     case 503:
       return "서버 인증 설정을 확인해야 합니다.";
