@@ -7,10 +7,16 @@ export class ApiError extends Error {
   }
 }
 
+function withBearerToken(accessToken?: string): HeadersInit {
+  return accessToken
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }
+    : { "Content-Type": "application/json" };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers: { "Content-Type": "application/json", ...init?.headers },
   });
 
   if (!res.ok) {
@@ -277,8 +283,33 @@ export type GreetingResponse = {
   has_history: boolean;
 };
 
+export type ChatSession = {
+  id: string;
+  character_id: number;
+  character_name: string;
+  character_role: string | null;
+  character_emoji: string | null;
+  character_profile_image_url: string | null;
+  book_id: number;
+  book_title: string;
+  title: string | null;
+  last_message_preview: string | null;
+  last_active_at: string | null;
+};
+
+export type ChatMessage = {
+  id: number;
+  role: "user" | "assistant";
+  message: string;
+  is_flagged: boolean;
+  turn_index: number | null;
+  created_at: string | null;
+};
+
 export type ChatSendResponse = {
+  session_id: string;
   response: string;
+  category: string;
   is_flagged: boolean;
   assistant_log_id: string;
 };
@@ -315,13 +346,55 @@ export const chatApi = {
     return request<GreetingResponse>(`/api/chat/greeting?${params.toString()}`);
   },
 
-  send: (characterId: number, message: string, userId?: string) =>
+  sessions: (userId: string, accessToken?: string) => {
+    const params = new URLSearchParams({ user_id: userId });
+    return request<ChatSession[]>(`/api/chat/sessions?${params.toString()}`, {
+      headers: withBearerToken(accessToken),
+    });
+  },
+
+  createSession: (characterId: number, userId: string, accessToken?: string) =>
+    request<ChatSession>("/api/chat/sessions", {
+      method: "POST",
+      headers: withBearerToken(accessToken),
+      body: JSON.stringify({
+        character_id: characterId,
+        user_id: userId,
+      }),
+    }),
+
+  deleteSession: (sessionId: string, userId: string, accessToken?: string) => {
+    const params = new URLSearchParams({ user_id: userId });
+    return request<void>(`/api/chat/sessions/${sessionId}?${params.toString()}`, {
+      method: "DELETE",
+      headers: withBearerToken(accessToken),
+    });
+  },
+
+  messages: (sessionId: string, userId: string, limit?: number, accessToken?: string) => {
+    const params = new URLSearchParams({ user_id: userId });
+    if (limit) params.set("limit", String(limit));
+    return request<ChatMessage[]>(
+      `/api/chat/sessions/${sessionId}/messages?${params.toString()}`,
+      { headers: withBearerToken(accessToken) },
+    );
+  },
+
+  send: (
+    characterId: number,
+    message: string,
+    userId?: string,
+    sessionId?: string,
+    accessToken?: string,
+  ) =>
     request<ChatSendResponse>("/api/chat", {
       method: "POST",
+      headers: withBearerToken(accessToken),
       body: JSON.stringify({
         character_id: characterId,
         message,
         ...(userId ? { user_id: userId } : {}),
+        ...(sessionId ? { session_id: sessionId } : {}),
       }),
     }),
 

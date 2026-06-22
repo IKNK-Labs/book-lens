@@ -14,9 +14,11 @@ from __future__ import annotations
 import json
 import os
 import re
-import uuid
 from typing import TypedDict
 
+from django.db import transaction
+from django.db.models import Max
+from django.utils import timezone
 from langgraph.graph import END, START, StateGraph
 from pgvector.django import CosineDistance
 
@@ -25,7 +27,7 @@ from books.models import BookContentChunk
 from characters.models import Character, Persona
 from moderation.models import ForbiddenRule
 
-from .models import ConversationLog, UserPreference
+from .models import ChatSession, ConversationLog, UserPreference
 
 
 # ─── 상수 ────────────────────────────────────────────────────────────────────
@@ -65,6 +67,7 @@ def _coerce_app_user_id(value: str) -> int | None:
 class ChatState(TypedDict):
     # 요청 입력
     user_id: str        # app_user.id 문자열, 없으면 빈 문자열
+    session_id: str     # chat_session.id 문자열, 없으면 빈 문자열
     character_id: int
     user_message: str
     # load_context_node에서 채워짐
@@ -419,14 +422,26 @@ def filter_response_node(state: ChatState) -> dict:
 
 def load_history_node(state: ChatState) -> dict:
     app_user_id = _coerce_app_user_id(state.get("user_id", ""))
+    session_id = state.get("session_id", "")
     if app_user_id is None:
         return {"conversation_history": []}
 
-    logs = (
-        ConversationLog.objects
-        .filter(user_id=app_user_id, character_id=state["character_id"])
-        .order_by("-created_at")[:HISTORY_LIMIT]
-    )
+    if session_id:
+        logs = (
+            ConversationLog.objects
+            .filter(
+                session_id=session_id,
+                user_id=app_user_id,
+                character_id=state["character_id"],
+            )
+            .order_by("-turn_index", "-created_at", "-id")[:HISTORY_LIMIT]
+        )
+    else:
+        logs = (
+            ConversationLog.objects
+            .filter(user_id=app_user_id, character_id=state["character_id"])
+            .order_by("-created_at")[:HISTORY_LIMIT]
+        )
     history = [
         {"role": log.role, "message": log.message}
         for log in reversed(list(logs))
@@ -438,23 +453,55 @@ def load_history_node(state: ChatState) -> dict:
 
 def save_conversation_node(state: ChatState) -> dict:
     app_user_id = _coerce_app_user_id(state.get("user_id", ""))
-    if app_user_id is None:
+    session_id = state.get("session_id", "")
+    if app_user_id is None or not session_id:
         return {}
 
-    ConversationLog.objects.create(
-        user_id=app_user_id,
-        character_id=state["character_id"],
-        role=ConversationLog.ROLE_USER,
-        message=state["user_message"],
-        is_flagged=state.get("category") == "forbidden",
-    )
-    assistant_log = ConversationLog.objects.create(
-        user_id=app_user_id,
-        character_id=state["character_id"],
-        role=ConversationLog.ROLE_ASSISTANT,
-        message=state["response"],
-        is_flagged=state.get("is_flagged", False),
-    )
+    with transaction.atomic():
+        session = ChatSession.objects.select_for_update().get(
+            id=session_id,
+            user_id=app_user_id,
+            character_id=state["character_id"],
+        )
+        max_turn_index = (
+            ConversationLog.objects
+            .filter(session=session)
+            .aggregate(max_turn_index=Max("turn_index"))
+            .get("max_turn_index")
+            or 0
+        )
+
+        ConversationLog.objects.create(
+            user_id=app_user_id,
+            character_id=state["character_id"],
+            session=session,
+            turn_index=max_turn_index + 1,
+            role=ConversationLog.ROLE_USER,
+            message=state["user_message"],
+            is_flagged=state.get("category") == "forbidden",
+        )
+        assistant_log = ConversationLog.objects.create(
+            user_id=app_user_id,
+            character_id=state["character_id"],
+            session=session,
+            turn_index=max_turn_index + 2,
+            role=ConversationLog.ROLE_ASSISTANT,
+            message=state["response"],
+            is_flagged=state.get("is_flagged", False),
+        )
+
+        now = timezone.now()
+        session.last_message_preview = state["response"][:500]
+        session.last_active_at = now
+        session.updated_at = now
+        session.save(
+            update_fields=[
+                "last_message_preview",
+                "last_active_at",
+                "updated_at",
+            ]
+        )
+
     return {"assistant_log_id": str(assistant_log.id)}
 
 
@@ -508,10 +555,12 @@ def run_chat(
     user_id: str,
     character_id: int,
     user_message: str,
+    session_id: str = "",
 ) -> dict:
-    """파이프라인을 실행하고 {"response": str, "category": str}을 반환합니다."""
+    """파이프라인을 실행하고 session-aware chat response를 반환합니다."""
     initial_state: ChatState = {
         "user_id": user_id,
+        "session_id": session_id,
         "character_id": character_id,
         "user_message": user_message,
         # 파이프라인이 채울 필드
@@ -531,7 +580,9 @@ def run_chat(
     final_state = chat_pipeline.invoke(initial_state)
 
     return {
+        "session_id": session_id,
         "response": final_state["response"],
+        "category": final_state.get("category", ""),
         "is_flagged": final_state.get("is_flagged", False),
         "assistant_log_id": final_state.get("assistant_log_id", ""),
     }
