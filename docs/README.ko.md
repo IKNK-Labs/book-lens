@@ -7,7 +7,7 @@
 **Book Lens**는 동화책 검색, 캐릭터 선택, 세션 기반 AI 채팅, 사용자 설정, 관리자 운영 화면을 하나로 연결한 AI 동화 경험 서비스입니다.
 
 <p align="center">
-  <img src="assets/user/home.png" width="47%" alt="Book Lens 사용자 메인 화면">
+  <img src="assets/service/home.png" width="47%" alt="Book Lens 사용자 메인 화면">
   <img src="assets/admin/dashboard.png" width="47%" alt="Book Lens 관리자 대시보드">
 </p>
 
@@ -74,15 +74,15 @@ book-lens/
 
 | 메인 | 내용 검색 |
 |---|---|
-| <img src="assets/user/home.png" width="420" alt="사용자 메인 화면"> | <img src="assets/user/content-search.png" width="420" alt="내용 검색 화면"> |
+| <img src="assets/service/home.png" width="420" alt="사용자 메인 화면"> | <img src="assets/service/content-search.png" width="420" alt="내용 검색 화면"> |
 
 | 동화책 상세 | 캐릭터 선택 |
 |---|---|
-| <img src="assets/user/book-detail.png" width="420" alt="동화책 상세 화면"> | <img src="assets/user/character-select.png" width="420" alt="캐릭터 선택 화면"> |
+| <img src="assets/service/book-detail.png" width="420" alt="동화책 상세 화면"> | <img src="assets/service/character-select.png" width="420" alt="캐릭터 선택 화면"> |
 
 | 채팅 | 마이페이지 |
 |---|---|
-| <img src="assets/user/chat.png" width="420" alt="채팅 화면"> | <img src="assets/user/my-page.png" width="420" alt="마이페이지 화면"> |
+| <img src="assets/service/chat.png" width="420" alt="채팅 화면"> | <img src="assets/service/my-page.png" width="420" alt="마이페이지 화면"> |
 
 ### 관리자 흐름
 
@@ -103,13 +103,13 @@ book-lens/
 
 | 화면 | 기본 상태 |
 |---|---|
-| <img src="assets/user/home.png" width="420" alt="사용자 메인 화면"> | <img src="assets/user/home-default.png" width="420" alt="사용자 메인 기본 상태"> |
-| <img src="assets/user/content-search.png" width="420" alt="내용 검색 화면"> | <img src="assets/user/content-search-default.png" width="420" alt="내용 검색 기본 상태"> |
-| <img src="assets/user/book-detail.png" width="420" alt="동화책 상세 화면"> | <img src="assets/user/book-detail-default.png" width="420" alt="동화책 상세 기본 상태"> |
-| <img src="assets/user/character-select.png" width="420" alt="캐릭터 선택 화면"> | <img src="assets/user/character-select-default.png" width="420" alt="캐릭터 선택 기본 상태"> |
-| <img src="assets/user/chat.png" width="420" alt="채팅 화면"> | <img src="assets/user/chat-default.png" width="420" alt="채팅 기본 상태"> |
-| <img src="assets/user/my-page.png" width="420" alt="마이페이지 화면"> | <img src="assets/user/my-page-default.png" width="420" alt="마이페이지 기본 상태"> |
-| <img src="assets/user/user-login.png" width="300" alt="사용자 로그인 화면"> | <img src="assets/user/user-login-default.png" width="300" alt="사용자 로그인 기본 상태"> |
+| <img src="assets/service/home.png" width="420" alt="사용자 메인 화면"> | <img src="assets/service/home-default.png" width="420" alt="사용자 메인 기본 상태"> |
+| <img src="assets/service/content-search.png" width="420" alt="내용 검색 화면"> | <img src="assets/service/content-search-default.png" width="420" alt="내용 검색 기본 상태"> |
+| <img src="assets/service/book-detail.png" width="420" alt="동화책 상세 화면"> | <img src="assets/service/book-detail-default.png" width="420" alt="동화책 상세 기본 상태"> |
+| <img src="assets/service/character-select.png" width="420" alt="캐릭터 선택 화면"> | <img src="assets/service/character-select-default.png" width="420" alt="캐릭터 선택 기본 상태"> |
+| <img src="assets/service/chat.png" width="420" alt="채팅 화면"> | <img src="assets/service/chat-default.png" width="420" alt="채팅 기본 상태"> |
+| <img src="assets/service/my-page.png" width="420" alt="마이페이지 화면"> | <img src="assets/service/my-page-default.png" width="420" alt="마이페이지 기본 상태"> |
+| <img src="assets/service/user-login.png" width="300" alt="사용자 로그인 화면"> | <img src="assets/service/user-login-default.png" width="300" alt="사용자 로그인 기본 상태"> |
 
 </details>
 

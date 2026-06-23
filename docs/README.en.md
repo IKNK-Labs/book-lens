@@ -7,7 +7,7 @@
 **Book Lens** is an AI-powered story experience service that connects book discovery, character selection, session-based AI chat, user preferences, and admin operations in one workflow.
 
 <p align="center">
-  <img src="assets/user/home.png" width="47%" alt="Book Lens user home screen">
+  <img src="assets/service/home.png" width="47%" alt="Book Lens user home screen">
   <img src="assets/admin/dashboard.png" width="47%" alt="Book Lens admin dashboard">
 </p>
 
@@ -74,15 +74,15 @@ book-lens/
 
 | Home | Content Search |
 |---|---|
-| <img src="assets/user/home.png" width="420" alt="User home screen"> | <img src="assets/user/content-search.png" width="420" alt="Content search screen"> |
+| <img src="assets/service/home.png" width="420" alt="User home screen"> | <img src="assets/service/content-search.png" width="420" alt="Content search screen"> |
 
 | Book Detail | Character Selection |
 |---|---|
-| <img src="assets/user/book-detail.png" width="420" alt="Book detail screen"> | <img src="assets/user/character-select.png" width="420" alt="Character selection screen"> |
+| <img src="assets/service/book-detail.png" width="420" alt="Book detail screen"> | <img src="assets/service/character-select.png" width="420" alt="Character selection screen"> |
 
 | Chat | My Page |
 |---|---|
-| <img src="assets/user/chat.png" width="420" alt="Chat screen"> | <img src="assets/user/my-page.png" width="420" alt="My page screen"> |
+| <img src="assets/service/chat.png" width="420" alt="Chat screen"> | <img src="assets/service/my-page.png" width="420" alt="My page screen"> |
 
 ### Admin Flow
 
@@ -103,13 +103,13 @@ book-lens/
 
 | Screen | Default State |
 |---|---|
-| <img src="assets/user/home.png" width="420" alt="User home screen"> | <img src="assets/user/home-default.png" width="420" alt="User home default state"> |
-| <img src="assets/user/content-search.png" width="420" alt="Content search screen"> | <img src="assets/user/content-search-default.png" width="420" alt="Content search default state"> |
-| <img src="assets/user/book-detail.png" width="420" alt="Book detail screen"> | <img src="assets/user/book-detail-default.png" width="420" alt="Book detail default state"> |
-| <img src="assets/user/character-select.png" width="420" alt="Character selection screen"> | <img src="assets/user/character-select-default.png" width="420" alt="Character selection default state"> |
-| <img src="assets/user/chat.png" width="420" alt="Chat screen"> | <img src="assets/user/chat-default.png" width="420" alt="Chat default state"> |
-| <img src="assets/user/my-page.png" width="420" alt="My page screen"> | <img src="assets/user/my-page-default.png" width="420" alt="My page default state"> |
-| <img src="assets/user/user-login.png" width="300" alt="User login screen"> | <img src="assets/user/user-login-default.png" width="300" alt="User login default state"> |
+| <img src="assets/service/home.png" width="420" alt="User home screen"> | <img src="assets/service/home-default.png" width="420" alt="User home default state"> |
+| <img src="assets/service/content-search.png" width="420" alt="Content search screen"> | <img src="assets/service/content-search-default.png" width="420" alt="Content search default state"> |
+| <img src="assets/service/book-detail.png" width="420" alt="Book detail screen"> | <img src="assets/service/book-detail-default.png" width="420" alt="Book detail default state"> |
+| <img src="assets/service/character-select.png" width="420" alt="Character selection screen"> | <img src="assets/service/character-select-default.png" width="420" alt="Character selection default state"> |
+| <img src="assets/service/chat.png" width="420" alt="Chat screen"> | <img src="assets/service/chat-default.png" width="420" alt="Chat default state"> |
+| <img src="assets/service/my-page.png" width="420" alt="My page screen"> | <img src="assets/service/my-page-default.png" width="420" alt="My page default state"> |
+| <img src="assets/service/user-login.png" width="300" alt="User login screen"> | <img src="assets/service/user-login-default.png" width="300" alt="User login default state"> |
 
 </details>
 
