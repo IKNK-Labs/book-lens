@@ -235,7 +235,6 @@ cd backend && python manage.py test --noinput
 ## 문서와 자산
 
 - 이미지 자산: `docs/assets/`
-- 자산 파일명 매핑: `docs/assets/ASSET_MAPPING.md`
 - 테스트 가이드: `docs/TESTING.md`
 - 채팅 세션 동작 문서: `docs/chat-agent-session-behavior.md`
 - 금지어 테이블 스키마 참고: `docs/FORBIDDEN_RULES_SCHEMA.md`
