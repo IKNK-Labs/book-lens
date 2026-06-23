@@ -235,7 +235,6 @@ Main verification points:
 ## Docs and Assets
 
 - Image assets: `docs/assets/`
-- Asset filename mapping: `docs/assets/ASSET_MAPPING.md`
 - Testing guide: `docs/TESTING.md`
 - Chat session behavior: `docs/chat-agent-session-behavior.md`
 - Forbidden rules schema reference: `docs/FORBIDDEN_RULES_SCHEMA.md`
