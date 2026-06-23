@@ -28,3 +28,7 @@ All filenames and folders were normalized to ASCII lowercase kebab-case for safe
 | `사용자/채팅 화면.png` | `docs/assets/user/chat.png` |
 | `사용자/캐릭터 선택(기본).png` | `docs/assets/user/character-select-default.png` |
 | `사용자/캐릭터 선택.png` | `docs/assets/user/character-select.png` |
+| `docs/DataFlow.png` | `docs/assets/architecture/data-flow.png` |
+| `docs/SystemArchitecture.png` | `docs/assets/architecture/system-architecture.png` |
+| `docs/chatbot_image.jpg` | `docs/assets/architecture/chatbot-image.jpg` |
+| `docs/erd.png` | `docs/assets/architecture/erd.png` |
