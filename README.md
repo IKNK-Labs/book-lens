@@ -1,8 +1,8 @@
 <h1 align="center">book-lens</h1>
 
 <p align="center">
-  <strong>프로젝트 설명</strong><br>
-  <strong>Project Description</strong>
+  <strong>동화책 탐색, 캐릭터 선택, 세션 기반 AI 채팅과 관리자 운영을 연결한 AI 동화 경험 서비스입니다.</strong><br>
+  <strong>An AI-powered story experience service connecting book discovery, character selection, session-based AI chat, and admin operations.</strong>
 </p>
 
 <p align="center">
