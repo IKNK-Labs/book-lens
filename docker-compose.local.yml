@@ -1,0 +1,6 @@
+services:
+  django:
+    ports:
+      - "127.0.0.1:${BOOKLENS_DJANGO_PORT:?set BOOKLENS_DJANGO_PORT}:8000"
+    environment:
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,django"

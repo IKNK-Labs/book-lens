@@ -5,7 +5,7 @@ services:
     image: nginx:1.27-alpine
     container_name: book-lens-nginx
     ports:
-      - "80:80"
+      - "12090:80"
     volumes:
       - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
@@ -36,6 +36,7 @@ services:
     restart: unless-stopped
 
   django:
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --timeout 120 --workers 3
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -59,6 +60,7 @@ services:
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
       SUPABASE_BUCKET: ${SUPABASE_BUCKET:-character-images}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     expose:
       - "8000"
     restart: unless-stopped
