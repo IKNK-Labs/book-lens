@@ -221,7 +221,7 @@ cd backend && python manage.py test --noinput
 - vector-search preload 설정 후 backend process 생존 확인
 - 운영 DB, service role key, 실제 개인정보를 테스트 산출물에 노출하지 않기
 
-<a href="https://github.com/IKNK-Labs/book-lens/tree/main/backend">랭그래프 단위테스트+회귀테스트</a>
+<a href="https://github.com/IKNK-Labs/book-lens/tree/main/backend">단위테스트 + 청크사이즈 튜닝 + 회귀테스트</a>
 
 
 ---
