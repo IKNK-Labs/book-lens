@@ -221,6 +221,7 @@ Main verification points:
 - Confirm backend process survival after vector-search preload configuration
 - Do not expose production DB values, service role keys, or real personal data in test artifacts
 
+<a href="https://github.com/IKNK-Labs/book-lens/blob/main/backend/README.md">Unit Testing + Chunk Size Tuning + Regression Testing</a>
 ---
 
 ## Current Limitations and Follow-ups
